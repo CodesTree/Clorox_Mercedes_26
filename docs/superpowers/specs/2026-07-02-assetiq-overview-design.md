@@ -26,6 +26,7 @@ certified inspection via Telegram → Google Calendar.
 
 > **TODO(cross-cutting/Gate1→2):** calibrate `FX_GBP_TO_RM` against the median RM of scraped comps once Gate-1 data lands, then re-run Phase 02 training. Owner: Data + ML.
 > **TODO(cross-cutting/P00):** source and commit a **real** sample ODX/PDX file to `data/sample_odx/` (e.g. from the `odxtools` example data). No fabricated fault codes — Phases 00/03 depend on it.
+> **Resolved (P00 plan):** committed as data/sample_odx/somersault.pdx (official odxtools example).
 > **TODO(cross-cutting/P05):** decide the source of "Nearest Mercedes Workshop" — a curated static list of real Mercedes-Benz Malaysia service centres vs. free-text user input. Must not be AI-invented. Consumed by the booking form (P04) and Telegram message (P05).
 
 **Two authenticity rules that bind every phase:**
