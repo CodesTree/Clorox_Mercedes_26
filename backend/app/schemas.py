@@ -4,7 +4,7 @@ All monetary values are RM integers. Phase 03 implements the endpoints;
 Phase 04 generates TS types from the OpenAPI these models produce.
 """
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -114,3 +114,4 @@ class BookingOut(BaseModel):
     status: str
     dispatched: bool
     dry_run: bool
+    payload: dict[str, Any] | None = None
