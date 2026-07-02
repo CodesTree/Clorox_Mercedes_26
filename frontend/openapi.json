@@ -1,0 +1,1100 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AssetIQ API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/predict": {
+      "post": {
+        "tags": [
+          "valuation"
+        ],
+        "summary": "Predict",
+        "operationId": "predict_predict_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/depreciation": {
+      "get": {
+        "tags": [
+          "valuation"
+        ],
+        "summary": "Depreciation",
+        "operationId": "depreciation_depreciation_get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          },
+          {
+            "name": "years",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 5,
+              "title": "Years"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepreciationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market/comps": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Market Comps",
+        "operationId": "market_comps_market_comps_get",
+        "parameters": [
+          {
+            "name": "model",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCompsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/obd/snapshot": {
+      "get": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Obd Snapshot",
+        "operationId": "obd_snapshot_obd_snapshot_get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObdSnapshotOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/obd/stream": {
+      "get": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Obd Stream",
+        "description": "SSE stream of ObdSnapshotOut payloads (implemented in Phase 03).",
+        "operationId": "obd_stream_obd_stream_get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/odx/faults": {
+      "get": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Odx Faults",
+        "operationId": "odx_faults_odx_faults_get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaultsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vehicle/profile": {
+      "get": {
+        "tags": [
+          "vehicle"
+        ],
+        "summary": "Get Profile",
+        "operationId": "get_profile_vehicle_profile_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "vehicle"
+        ],
+        "summary": "Put Profile",
+        "operationId": "put_profile_vehicle_profile_put",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleProfileIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/booking": {
+      "post": {
+        "tags": [
+          "booking"
+        ],
+        "summary": "Create Booking",
+        "operationId": "create_booking_booking_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BookingIn": {
+        "properties": {
+          "profile_id": {
+            "type": "integer",
+            "title": "Profile Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "workshop": {
+            "type": "string",
+            "title": "Workshop"
+          },
+          "car_model": {
+            "type": "string",
+            "title": "Car Model"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "time": {
+            "type": "string",
+            "title": "Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile_id",
+          "name",
+          "workshop",
+          "car_model",
+          "purpose",
+          "date",
+          "time"
+        ],
+        "title": "BookingIn"
+      },
+      "BookingOut": {
+        "properties": {
+          "booking_id": {
+            "type": "integer",
+            "title": "Booking Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "dispatched": {
+            "type": "boolean",
+            "title": "Dispatched"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "booking_id",
+          "status",
+          "dispatched",
+          "dry_run"
+        ],
+        "title": "BookingOut"
+      },
+      "DepreciationOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/DepreciationPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "title": "DepreciationOut"
+      },
+      "DepreciationPoint": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "value_rm": {
+            "type": "integer",
+            "title": "Value Rm"
+          },
+          "retained_pct": {
+            "type": "number",
+            "title": "Retained Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "value_rm",
+          "retained_pct"
+        ],
+        "title": "DepreciationPoint"
+      },
+      "FaultOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "system": {
+            "type": "string",
+            "title": "System"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "description",
+          "severity",
+          "system"
+        ],
+        "title": "FaultOut"
+      },
+      "FaultsOut": {
+        "properties": {
+          "faults": {
+            "items": {
+              "$ref": "#/components/schemas/FaultOut"
+            },
+            "type": "array",
+            "title": "Faults"
+          }
+        },
+        "type": "object",
+        "required": [
+          "faults"
+        ],
+        "title": "FaultsOut"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthOut"
+      },
+      "MarketCompsOut": {
+        "properties": {
+          "comps": {
+            "items": {
+              "$ref": "#/components/schemas/MarketListingOut"
+            },
+            "type": "array",
+            "title": "Comps"
+          },
+          "median_rm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Rm"
+          },
+          "delta_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Pct"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          }
+        },
+        "type": "object",
+        "required": [
+          "comps",
+          "median_rm",
+          "delta_pct",
+          "n"
+        ],
+        "title": "MarketCompsOut"
+      },
+      "MarketListingOut": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "mudah",
+              "carlist"
+            ],
+            "title": "Source"
+          },
+          "listing_url": {
+            "type": "string",
+            "title": "Listing Url"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "price_rm": {
+            "type": "integer",
+            "title": "Price Rm"
+          },
+          "mileage": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mileage"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "posted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posted At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "listing_url",
+          "model",
+          "year",
+          "price_rm"
+        ],
+        "title": "MarketListingOut"
+      },
+      "ObdSnapshotOut": {
+        "properties": {
+          "rpm": {
+            "type": "integer",
+            "title": "Rpm"
+          },
+          "coolant_c": {
+            "type": "number",
+            "title": "Coolant C"
+          },
+          "battery_v": {
+            "type": "number",
+            "title": "Battery V"
+          },
+          "health": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Health"
+          },
+          "odo_km": {
+            "type": "integer",
+            "title": "Odo Km"
+          },
+          "simulated": {
+            "type": "boolean",
+            "const": true,
+            "title": "Simulated",
+            "default": true
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rpm",
+          "coolant_c",
+          "battery_v",
+          "health",
+          "odo_km",
+          "ts"
+        ],
+        "title": "ObdSnapshotOut"
+      },
+      "PredictOut": {
+        "properties": {
+          "value_rm": {
+            "type": "integer",
+            "title": "Value Rm"
+          },
+          "low_rm": {
+            "type": "integer",
+            "title": "Low Rm"
+          },
+          "high_rm": {
+            "type": "integer",
+            "title": "High Rm"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "currency": {
+            "type": "string",
+            "const": "RM",
+            "title": "Currency",
+            "default": "RM"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value_rm",
+          "low_rm",
+          "high_rm",
+          "confidence"
+        ],
+        "title": "PredictOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VehicleProfileIn": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "year": {
+            "type": "integer",
+            "maximum": 2100.0,
+            "minimum": 1970.0,
+            "title": "Year"
+          },
+          "mileage": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Mileage"
+          },
+          "transmission": {
+            "type": "string",
+            "title": "Transmission"
+          },
+          "fuel_type": {
+            "type": "string",
+            "title": "Fuel Type"
+          },
+          "engine_size": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Engine Size"
+          },
+          "mpg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mpg"
+          },
+          "tax": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax"
+          },
+          "service_history_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service History Count"
+          },
+          "service_history_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service History Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "year",
+          "mileage",
+          "transmission",
+          "fuel_type",
+          "engine_size"
+        ],
+        "title": "VehicleProfileIn"
+      },
+      "VehicleProfileOut": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "year": {
+            "type": "integer",
+            "maximum": 2100.0,
+            "minimum": 1970.0,
+            "title": "Year"
+          },
+          "mileage": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Mileage"
+          },
+          "transmission": {
+            "type": "string",
+            "title": "Transmission"
+          },
+          "fuel_type": {
+            "type": "string",
+            "title": "Fuel Type"
+          },
+          "engine_size": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Engine Size"
+          },
+          "mpg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mpg"
+          },
+          "tax": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax"
+          },
+          "service_history_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service History Count"
+          },
+          "service_history_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service History Total"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "workshop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workshop"
+          },
+          "glb_asset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Glb Asset"
+          },
+          "service_history_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service History Max"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "year",
+          "mileage",
+          "transmission",
+          "fuel_type",
+          "engine_size",
+          "id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "VehicleProfileOut"
+      }
+    }
+  }
+}
