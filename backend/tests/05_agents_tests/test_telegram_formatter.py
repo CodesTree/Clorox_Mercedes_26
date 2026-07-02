@@ -124,7 +124,7 @@ def test_poll_for_confirmation_filters_chat_and_tracks_offset(monkeypatch):
     assert captured["params"] == {"offset": 8, "timeout": 2}
     assert captured["timeout"] == 5.0
     assert message["text"] == "  confirmed  "
-    assert telegram_bot.POLL_SINCE_UPDATE_ID == 43
+    assert telegram_bot._POLL_SINCE_UPDATE_ID == 43
 
 
 def test_schedule_confirmation_poll_uses_background_tasks():

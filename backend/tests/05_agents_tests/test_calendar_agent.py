@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from app.services import calendar_agent
 from app.services.calendar_agent import build_event_payload, resolve_booking
 from datetime import datetime
-from dateutil.parser import parse
+#from dateutil.parser import parse
 
 
 def test_build_event_payload_creates_calendar_body():
