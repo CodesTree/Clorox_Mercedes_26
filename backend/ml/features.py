@@ -30,6 +30,7 @@ def battery_soh_base(fuel_type: str, age: float, mileage: float) -> float:
     Hybrid: the HV battery degrades mainly with CHARGE CYCLES (mileage), and does
     so NON-LINEARLY (a super-linear mileage exponent), so high-mileage hybrids
     fall off faster than a linear model predicts.
+    Callers MUST clip the result (np.clip / _clip_soh) before exposing it.
     """
     if fuel_type == HYBRID_FUEL:
         cycles = mileage / 100_000.0
@@ -41,6 +42,11 @@ def _clip_soh(value: float) -> float:
     return min(100.0, max(SOH_FLOOR, value))
 
 
+def _clip_offset(value: float) -> float:
+    """Non-manual offsets stay strictly negative (0.0 is the Manual sentinel)."""
+    return min(value, OFFSET_MAX)
+
+
 def trans_adapt_offset_base(transmission: str, mileage: float) -> float:
     """Deterministic Transmission Adaptation Offset (a depreciation modifier <= 0).
 
@@ -48,6 +54,7 @@ def trans_adapt_offset_base(transmission: str, mileage: float) -> float:
     transmission (the "not manual -> automatic logic" path) the electronic TCU's
     hydraulic-adaptation wear scales with mileage, bucketed into normal /
     noticeable / critical wear bands, always strictly negative.
+    Matching is case-sensitive; unrecognized/NaN transmission values take the automatic-wear path.
     """
     if transmission == MANUAL_TRANSMISSION:
         return 0.0
@@ -57,7 +64,7 @@ def trans_adapt_offset_base(transmission: str, mileage: float) -> float:
         base = -0.05
     else:                       # critical wear
         base = -0.10
-    continuous = -0.02 * (mileage / 120_000.0)   # within-band scaling
+    continuous = -0.02 * (mileage / 120_000.0)   # within-band scaling, normalised to the critical-band threshold
     return base + continuous
 
 
@@ -79,7 +86,7 @@ def add_engineered_features(df: pd.DataFrame, seed: int = FEATURE_SEED) -> pd.Da
         [trans_adapt_offset_base(t, m) for t, m in zip(out["transmission"], out["mileage"])]
     )
     is_manual = (out["transmission"] == MANUAL_TRANSMISSION).to_numpy()
-    noisy = np.minimum(offset + rng.normal(0.0, OFFSET_NOISE_STD, len(out)), OFFSET_MAX)
+    noisy = np.minimum(offset + rng.normal(0.0, OFFSET_NOISE_STD, len(out)), OFFSET_MAX)  # array form of _clip_offset
     offset = np.where(is_manual, 0.0, noisy)
 
     out["battery_soh"] = np.round(soh, 2)
@@ -95,4 +102,6 @@ def engineer_profile(profile: dict) -> dict:
     """
     soh = _clip_soh(battery_soh_base(profile["fuel_type"], profile["age"], profile["mileage"]))
     offset = trans_adapt_offset_base(profile["transmission"], profile["mileage"])
+    if profile["transmission"] != MANUAL_TRANSMISSION:
+        offset = _clip_offset(offset)
     return {**profile, "battery_soh": round(soh, 2), "trans_adapt_offset": round(offset, 4)}

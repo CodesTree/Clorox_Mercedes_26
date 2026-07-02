@@ -92,3 +92,15 @@ def test_engineer_profile_is_noise_free_and_deterministic():
     assert one == two
     assert one["trans_adapt_offset"] < 0.0
     assert F.SOH_FLOOR < one["battery_soh"] <= 100.0
+
+
+def test_extreme_inputs_are_clipped_to_bounds():
+    prof = {"fuel_type": "Hybrid", "transmission": "Automatic", "age": 60, "mileage": 500_000}
+    out = F.engineer_profile(prof)
+    assert out["battery_soh"] == F.SOH_FLOOR
+    assert out["trans_adapt_offset"] < 0.0
+
+    frame = pd.DataFrame([prof])
+    engineered = F.add_engineered_features(frame, seed=42)
+    assert engineered.loc[0, "battery_soh"] == F.SOH_FLOOR
+    assert engineered.loc[0, "trans_adapt_offset"] < 0.0
