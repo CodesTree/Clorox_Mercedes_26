@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import json
+import logging
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
+from ..config import get_settings
 from .dispatcher import BookingRecord
+
+
+logger = logging.getLogger(__name__)
+
+GEMINI_MODEL_ID = "gemini-1.5-flash"
+_BOOKING_FIELDS = ("name", "workshop", "car_model", "purpose", "date", "time")
 
 
 def build_event_payload(booking: BookingRecord) -> dict:
@@ -34,3 +44,152 @@ def build_event_payload(booking: BookingRecord) -> dict:
             ],
         },
     }
+
+
+def _booking_namespace(booking: BookingRecord, overrides: dict[str, str] | None = None) -> SimpleNamespace:
+    data = {field: getattr(booking, field) for field in _BOOKING_FIELDS}
+    if overrides:
+        data.update(overrides)
+    return SimpleNamespace(**data)
+
+
+def _setting_is_configured(settings, field_name: str) -> bool:
+    value = getattr(settings, field_name, "")
+    if field_name not in getattr(settings, "model_fields_set", set()):
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    return bool(value)
+
+
+def _dry_run_booking(booking: BookingRecord) -> dict:
+    payload = build_event_payload(booking)
+    logger.info("Calendar dry-run payload: %s", payload)
+    return {"status": "dry_run", "calendar_event_id": None, "dry_run": True}
+
+
+def _create_calendar_service(settings):
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+    except Exception as exc:  # pragma: no cover - exercised via mocks in tests
+        raise RuntimeError("Google Calendar SDK unavailable") from exc
+
+    scopes = ["https://www.googleapis.com/auth/calendar.events"]
+    credentials_json = settings.google_calendar_credentials_json.strip()
+    if credentials_json.startswith("{"):
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(credentials_json), scopes=scopes
+        )
+    else:
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials_json, scopes=scopes
+        )
+
+    return build("calendar", "v3", credentials=credentials, cache_discovery=False)
+
+
+def _create_calendar_event(payload: dict, settings) -> dict:
+    service = _create_calendar_service(settings)
+    response = (
+        service.events()
+        .insert(calendarId=settings.google_calendar_id, body=payload)
+        .execute()
+    )
+    event_id = response.get("id") if isinstance(response, dict) else None
+    if not event_id:
+        raise RuntimeError("Calendar API response missing event id")
+
+    return {"status": "booked", "calendar_event_id": str(event_id), "dry_run": False}
+
+
+def _clean_json_payload(text: str) -> dict:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    return json.loads(cleaned)
+
+
+def _extract_booking_via_gemini(booking: BookingRecord, settings) -> dict | None:
+    try:
+        import google.generativeai as genai
+    except Exception as exc:  # pragma: no cover - exercised via mocks in tests
+        raise RuntimeError("Gemini SDK unavailable") from exc
+
+    genai.configure(api_key=settings.gemini_api_key)
+    model = genai.GenerativeModel(GEMINI_MODEL_ID)
+
+    confirmation_text = str(getattr(booking, "confirmation_text", "") or "")
+    booking_context = json.dumps(
+        {field: getattr(booking, field) for field in _BOOKING_FIELDS},
+        ensure_ascii=False,
+    )
+    prompt = (
+        "System: extract booking intent as JSON only. "
+        'Return {"workshop", "car_model", "purpose", "date", "time", "ambiguous"}. '
+        'Set "ambiguous": true if the confirmation text does not clearly match the booking.\n\n'
+        f"Confirmation text: {confirmation_text}\n\n"
+        f"Structured booking fields: {booking_context}"
+    )
+
+    response = model.generate_content(prompt)
+    response_text = getattr(response, "text", None) or ""
+    if not response_text:
+        return None
+
+    payload = _clean_json_payload(response_text)
+    if payload.get("ambiguous") is True:
+        return None
+
+    required_fields = {"workshop", "car_model", "purpose", "date", "time"}
+    if not required_fields.issubset(payload):
+        return None
+
+    return {field: str(payload[field]) for field in required_fields}
+
+
+def _deterministic_resolve(booking: BookingRecord, settings) -> dict:
+    try:
+        payload = build_event_payload(booking)
+        return _create_calendar_event(payload, settings)
+    except Exception:
+        logger.exception("Deterministic calendar resolution failed; falling back to dry-run")
+        return _dry_run_booking(booking)
+
+
+def resolve_booking(booking: BookingRecord) -> dict:
+    settings = get_settings()
+
+    has_google = _setting_is_configured(settings, "google_calendar_credentials_json") and _setting_is_configured(
+        settings, "google_calendar_id"
+    )
+    has_gemini = _setting_is_configured(settings, "gemini_api_key")
+
+    if not has_google:
+        return _dry_run_booking(booking)
+
+    if not has_gemini:
+        return _deterministic_resolve(booking, settings)
+
+    try:
+        extracted = _extract_booking_via_gemini(booking, settings)
+    except Exception:
+        logger.exception("Gemini booking extraction failed; falling back to deterministic resolution")
+        return _deterministic_resolve(booking, settings)
+
+    if extracted is None:
+        return _deterministic_resolve(booking, settings)
+
+    gemini_booking = _booking_namespace(booking, extracted)
+    try:
+        payload = build_event_payload(gemini_booking)
+        return _create_calendar_event(payload, settings)
+    except Exception:
+        logger.exception("Gemini calendar creation failed; falling back to deterministic resolution")
+        return _deterministic_resolve(booking, settings)
