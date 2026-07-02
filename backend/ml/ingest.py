@@ -201,7 +201,7 @@ def ingest_to_db(
 
 
 def main(
-    csv_path: Path | str = "data/merc.csv",
+    csv_path: Path | str = "data/sample_odx/merc.csv",
     fx_gbp_to_rm: float = 5.90,
     current_year: int | None = None,
 ) -> IngestSummary:
@@ -210,7 +210,7 @@ def main(
     Loads merc.csv, cleans, normalizes, and populates training_data.
 
     Args:
-        csv_path: Path to merc.csv (default: data/merc.csv from repo root).
+        csv_path: Path to merc.csv (default: data/sample_odx/merc.csv from repo root).
         fx_gbp_to_rm: FX rate GBP->RM (default: 5.90, overrideable for tuning).
         current_year: Year for age calculation (default: now).
 
