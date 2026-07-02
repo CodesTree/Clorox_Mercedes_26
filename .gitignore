@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- AssetIQ project ---
+.env
+data/*.db
+backend/ml/artifacts/
+secrets/
+backend/.venv/
+node_modules/
+frontend/dist/
