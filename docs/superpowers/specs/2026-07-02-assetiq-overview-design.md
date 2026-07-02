@@ -24,6 +24,10 @@ certified inspection via Telegram → Google Calendar.
 | 6 | 3D asset | Load `.glb` from `frontend/public/models/`; if absent, **procedurally build a low-poly coupe**. Idle auto-rotate + drag-orbit + scroll-zoom + clickable component highlights on both |
 | 7 | ML scope | **Random Forest** (production) + **Linear Regression** (baseline), both scored by **GroupKFold(groups=model)** on **MAE, MAPE, RMSE, R²** |
 
+> **TODO(cross-cutting/Gate1→2):** calibrate `FX_GBP_TO_RM` against the median RM of scraped comps once Gate-1 data lands, then re-run Phase 02 training. Owner: Data + ML.
+> **TODO(cross-cutting/P00):** source and commit a **real** sample ODX/PDX file to `data/sample_odx/` (e.g. from the `odxtools` example data). No fabricated fault codes — Phases 00/03 depend on it.
+> **TODO(cross-cutting/P05):** decide the source of "Nearest Mercedes Workshop" — a curated static list of real Mercedes-Benz Malaysia service centres vs. free-text user input. Must not be AI-invented. Consumed by the booking form (P04) and Telegram message (P05).
+
 **Two authenticity rules that bind every phase:**
 - No AI-invented market facts. If it isn't in `merc.csv` or scraped from Mudah.my / Carlist.my, it
   does not become a market number. Simulated OBD-II telemetry is device simulation (allowed) and is

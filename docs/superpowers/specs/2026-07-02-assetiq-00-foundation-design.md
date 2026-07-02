@@ -59,6 +59,7 @@ Clorox_Mercedes_26/
 - **`market_listings`** — real scraped listings (Mercedes only), prices in RM.
   `id PK · source ('mudah'|'carlist') · listing_url UNIQUE · model · variant · year · price_rm ·
   mileage · transmission · fuel_type · location · seller_type · posted_at · scraped_at`
+  > **TODO(P00/P01):** enumerate the `seller_type` value set (e.g. `'dealer'|'private'|'unknown'`) and confirm `posted_at` storage type (ISO date string vs. relative "3 days ago" needing normalisation at scrape time — resolve at Gate 1).
 - **`vehicle_profiles`** — the subject car(s) being valued.
   `id PK · name · model (must ∈ training_data.model set) · year · mileage · transmission ·
   fuel_type · engine_size · service_history_count · service_history_total · service_history_max ·
@@ -74,6 +75,8 @@ Clorox_Mercedes_26/
 
 All monetary values are RM integers. Endpoints and JSON shapes (Phase 03 implements; Phase 04
 builds against these; both may generate types from the live OpenAPI at `/openapi.json`):
+
+> **TODO(P00):** decide the TS type-generation approach for the frontend — `openapi-typescript` against `/openapi.json` (single source of truth, recommended) vs. hand-maintained `src/types/`. Pin the choice so Phase 04 doesn't drift from the contract.
 
 | Method | Path | Request | Response (200) |
 |--------|------|---------|----------------|
@@ -135,11 +138,13 @@ rules are owned by Phase 01.
 
 1. Initialise `backend/` (FastAPI, SQLAlchemy, pydantic-settings, pytest) and `frontend/`
    (Vite + React + TS, three, @react-three/fiber, @react-three/drei, MSW, vitest, playwright).
+   > **TODO(P00):** pin exact dependency versions (Python `requirements.txt`/`pyproject` + npm `package.json`) so all five parallel tracks build against identical toolchains. Note Python version for `odxtools` compatibility.
 2. Implement `config.py`, `db.py`, `orm.py` (all tables), `schemas.py` (all models above), `main.py`
    with `/health` and CORS.
 3. Write `.env.example`; extend `.gitignore` for `.env`, `data/*.db`, `backend/ml/artifacts/`,
    `secrets/`.
 4. Create `data/sample_odx/` with a committed sample ODX/PDX file for Phase 03.
+   > **TODO(P00):** obtain a **real** ODX/PDX file (from the `mercedes-benz/odxtools` example data or an equivalent public source) and commit it. Blocks Phase 03 `/odx/faults`. Do not hand-author fault codes.
 5. Add root `README.md` (run instructions) and dev scripts (`make dev` / npm scripts).
 
 ## Tests (PyTest)

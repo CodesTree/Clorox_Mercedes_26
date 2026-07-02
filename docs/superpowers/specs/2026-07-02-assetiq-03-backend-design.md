@@ -30,16 +30,25 @@ Routers + services implementing:
 | `GET/PUT /vehicle/profile` | `vehicle.py` | CRUD on `vehicle_profiles`; seeds a default SL CLASS profile |
 | `POST /booking` | booking router | validates, persists `bookings`, delegates to automation interface (Phase 05); returns dry-run payload if automation/keys absent |
 
+> **TODO(P03):** define the default seeded `vehicle_profiles` row (SL CLASS) concrete field values — year, mileage, transmission, fuel_type, engine_size, service_history counts — using a plausible in-dataset profile. This is the subject car the dashboard values by default.
+
 **`obd_sim.py`:** generates physics-plausible values — RPM idle/rev band, coolant warm-up curve,
 battery 12.4–14.4 V, health 0–100 from a simple weighted function of simulated signals + fault
 count + service completeness. Deterministic seed option for tests. Always labelled simulated.
+
+> **TODO(P03):** pin the exact `obd_sim` signal ranges + warm-up curve parameters, and the SSE emit interval + max stream duration.
+> **TODO(P03):** define the **health-score formula** (component weights + thresholds). This must be the single shared definition consumed by the frontend `HealthCheck` (P04) — agree it once here.
 
 **`odx_service.py`:** uses `mercedes-benz/odxtools` to read the committed sample ODX/PDX file into
 `{code, description, severity, system}`; cache to `dtc_codes`. If the sample file is missing, return
 `faults:[]` (no crash).
 
+> **TODO(P03):** map the concrete `odxtools` DTC object fields → the response `{severity, system}` (odxtools exposes trouble codes/diagnostic layers, not a literal "severity"; define the derivation once the sample ODX is committed in P00).
+
 **`market.py`:** `delta_pct = (predict_value − median_comp) / median_comp`. Both sides RM. If no
 comps for the model/year window, return `comps:[], median_rm:null, delta_pct:null`.
+
+> **TODO(P03):** define the comp-matching window — same `model`, `year ± N`, optional mileage band — and the default `limit`. Decide the fallback widening rule when the tight window yields too few comps.
 
 **Booking interface:** backend defines `BookingDispatcher` protocol; ships a `DryRunDispatcher`
 (returns the exact payload it would send, `dry_run:true`). Phase 05 provides the real Telegram

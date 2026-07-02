@@ -35,6 +35,8 @@ Load `merc.csv`, clean, convert, write. **Cleaning rules:**
 
 Emit a summary: rows in, rows dropped (by reason), rows written, RM price range.
 
+> **TODO(P01):** enumerate the canonical class-label map (every raw `merc.csv` `model` spelling → one label) as a committed constant, and **decide the fate of the numeric-only rows** (`230/220/200/180`) — drop entirely vs. map to a class. Both ingest (P01) and the `vehicle_profiles.model` constraint (P00) must share this exact label set.
+
 ## Part B — Scraper (`scraper/`)
 
 **`base.py` — polite fetcher (shared by both sites):**
@@ -45,6 +47,8 @@ Emit a summary: rows in, rows dropped (by reason), rows written, RM price range.
 - Configurable `User-Agent` with contact info; only public listing pages; **no auth bypass, no
   CAPTCHA circumvention, no protected endpoints.**
 - Hard page/listing cap per run (config) to keep the sample small and polite.
+  > **TODO(P01):** set default values for the page/listing cap and `SCRAPER_RATE_LIMIT_SECONDS`.
+  > **TODO(Gate1):** read each site's `robots.txt` `Crawl-delay` and reconcile it with `SCRAPER_RATE_LIMIT_SECONDS` (use the stricter of the two).
 
 **`mudah.py` / `carlist.py` — extractors:**
 - Target the public Mercedes-Benz used-car search results + listing pages.
@@ -57,6 +61,8 @@ Emit a summary: rows in, rows dropped (by reason), rows written, RM price range.
 
 > Selectors are verified live at Gate 1 (marketplace DOMs change). `fixtures/` holds saved sample
 > HTML captured during the sample run so unit tests never hit the network.
+
+> **TODO(Gate1):** capture and record the live selectors/field map for **each** site — search-results card, listing detail page, pagination control, and the `posted_at` format — plus the canonical Mercedes search URL. Fill `mudah.py`/`carlist.py` from the captured fixtures, not from assumptions.
 
 **`pipeline.py`** orchestrates: fetch → extract → normalise → upsert, with the run summary.
 

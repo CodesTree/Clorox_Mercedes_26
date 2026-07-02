@@ -20,6 +20,8 @@ product works with Playwright E2E plus cross-phase integration tests.
 - Playwright E2E suite (`frontend/tests/`).
 - A short run/verify runbook in `README.md`.
 
+> **TODO(P06):** decide CI — a GitHub Actions workflow running PyTest (all phases) + Playwright on push/PR, vs. a documented manual runbook only. Pin which, since it affects how tests are wired.
+
 ## Wiring tasks
 
 1. Point the frontend at the live backend (drop MSW for E2E runs).
@@ -37,6 +39,7 @@ product works with Playwright E2E plus cross-phase integration tests.
 
 ## Playwright E2E (`frontend/tests/`)
 - Dashboard loads; 3D `<canvas>` mounts; idle spin observable.
+  > **TODO(P06):** define a deterministic assertion for "idle spin" (Three.js renders to a canvas, so pixels aren't trivially assertable) — e.g. expose the hero's rotation on a `data-*`/test hook and assert it advances over time.
 - Each side-nav item opens its panel; a mesh click opens the same panel.
 - Health-checkup button produces a score.
 - Booking form submits and shows dry-run/dispatched state.

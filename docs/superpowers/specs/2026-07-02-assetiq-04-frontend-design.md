@@ -27,6 +27,7 @@ valuation/telemetry/booking surfaces.
 - **Component highlighting:** raycaster maps hero meshes (or fallback proxies) to the 7 components;
   hovering/selecting highlights the region (emissive/outline) and opens the matching panel.
   Mesh-click and side-nav-click are the **same action**.
+  > **TODO(P04):** define the mesh-name → component map for the AMG GT `.glb` (depends on the asset's node names) **and** the clickable proxy regions for the procedural fallback, so both hero variants map to all 7 components.
 
 ### Components (`src/components/`)
 - `SideNav` — the 7 items: Engine & transmission · Battery/electrical · Mileage/odometer (OBD) ·
@@ -36,8 +37,10 @@ valuation/telemetry/booking surfaces.
 - `ValueHeader` — headline `value_rm`, `[low,high]` band, `confidence`, `delta_pct` vs market
   (hidden when null).
 - `DepreciationChart` — `/depreciation` retained-value curve.
+  > **TODO(P04):** choose the chart rendering approach (hand-rolled SVG vs. a lib e.g. Recharts/visx) — keep it dependency-light to match the premium, non-stock-demo aesthetic.
 - `HealthCheck` — button below the car; aggregates telemetry + faults + service completeness into a
   health score (e.g. "87/100") with a short breakdown.
+  > **TODO(P04):** consume the **shared** health-score formula defined in Phase 03 (do not re-invent it here); define the breakdown line items shown to the user. Confirm the idle-spin resume delay (~3 s).
 - `ServiceHistory` — summary + the labelled **assumption** adjustment (never shown as market truth).
 - `BookingModal` — form (Name, Nearest Workshop, Car model, Purpose, Date, Time) → `POST /booking`;
   shows dry-run vs dispatched state.
@@ -47,6 +50,7 @@ valuation/telemetry/booking surfaces.
   cleaner: hero value top-center, live OBD-II rail left, valuation factors right, depreciation
   bottom-right, CTA center-bottom, service summary bottom-left. Live telemetry via SSE `/obd/stream`
   with graceful reconnect.
+  > **TODO(P04):** define the concrete design tokens — exact palette (dark base + teal accent hex values), spacing scale, and type scale/fonts — as CSS variables/theme before building components, so the look is intentional and consistent, not ad-hoc.
 
 ## Graceful states
 - Missing `.glb` → procedural coupe (no error).

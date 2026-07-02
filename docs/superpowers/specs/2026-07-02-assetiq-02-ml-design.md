@@ -34,6 +34,7 @@ plus a predictor interface the backend consumes.
 ## Models (`ml/train.py`)
 
 - **Production:** `RandomForestRegressor` (seeded; sensible n_estimators/max_depth, lightly tuned).
+  > **TODO(Gate2):** finalize RF hyperparameters (n_estimators, max_depth, min_samples_leaf, max_features); record the search/rationale in `metrics.json`. Keep `random_state` fixed for reproducibility.
 - **Baseline:** `LinearRegression` on the same preprocessed features.
 
 ## Evaluation
@@ -43,16 +44,22 @@ plus a predictor interface the backend consumes.
 - `metrics.json` holds the per-fold table + aggregates + feature list + FX rate used + row count +
   training timestamp.
 
+> **TODO(P02):** guard **MAPE** against near-zero target prices (exclude rows below a floor, or use a small epsilon) so a cheap listing can't explode the percentage. Document the choice in `metrics.json`.
+
 ## Prediction interval (the mockup's "92% confidence")
 
 From the fitted RF, collect per-tree predictions for the input; report `value_rm` = ensemble mean,
 `[low_rm, high_rm]` = the central interval from the tree spread (e.g. 4th–96th percentile ≈ 92%),
 `confidence` = the nominal coverage. Documented as ensemble-derived, not invented.
 
+> **TODO(Gate2):** empirically validate that the chosen tree-spread percentiles actually achieve ≈92% coverage on the validation folds; adjust the percentile band if not. Confirm `low_rm ≥ 0`.
+
 ## Depreciation curve (the mockup's retained-value line)
 
 Hold the profile fixed, advance `age` forward N years, predict `value_rm` at each step;
 `retained_pct = value_at_year / value_today`. Purely model-derived.
+
+> **TODO(P02):** set the max forecast horizon (e.g. 5–7 years) and a non-negative value floor; decide behaviour when advancing `age` pushes a class outside the training age range (clamp vs. extrapolate-with-warning).
 
 ## ⛔ Gate 2 — what I bring to you
 
