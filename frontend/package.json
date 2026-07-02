@@ -1,0 +1,35 @@
+{
+  "name": "assetiq-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "gen:api": "openapi-typescript openapi.json -o src/types/api.d.ts"
+  },
+  "dependencies": {
+    "@react-three/drei": "9.120.4",
+    "@react-three/fiber": "8.17.10",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.172.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.2.0",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "@types/three": "0.172.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "jsdom": "26.0.0",
+    "msw": "2.7.0",
+    "openapi-typescript": "7.5.2",
+    "typescript": "5.7.3",
+    "vite": "6.0.7",
+    "vitest": "2.1.8"
+  }
+}
