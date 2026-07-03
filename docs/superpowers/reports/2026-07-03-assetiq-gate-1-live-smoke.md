@@ -107,6 +107,12 @@ test_crawl_delay_overrides_shorter_config_rate_limit
 test_config_rate_limit_overrides_shorter_crawl_delay
 ```
 
+Latest verification after adding Crawl-delay coverage:
+
+```text
+47 passed
+```
+
 ## Controlled Live Smoke Test
 
 Final command to run from the repository root:
