@@ -29,8 +29,8 @@ def capture_mudah_fixtures(fetcher: PoliteFetcher, fixture_dir: Path) -> None:
     print("\n[fixtures] Capturing Mudah.my pages...")
 
     # TODO(P01): Update with actual Mudah.my search results URL
-    search_url = "https://www.mudah.my/cars-for-sale--page-1--55.htm"  # Placeholder
-    listing_url = "https://www.mudah.my/Mercedes-Benz-C-Class-2017-Auto-Petrol-1234567.htm"  # Placeholder
+    search_url = "https://www.mudah.my/malaysia/cars-for-sale/mercedes-benz/c200?q=mercedes+benz+c200"  # Placeholder
+    listing_url = "https://www.mudah.my/2020-mercedes-benz-c200-1-5-4matic-laureus-114758332.htm"  # Placeholder
 
     print(f"  Search URL: {search_url}")
     print(f"  Listing URL: {listing_url}")
@@ -70,8 +70,8 @@ def capture_carlist_fixtures(fetcher: PoliteFetcher, fixture_dir: Path) -> None:
     print("\n[fixtures] Capturing Carlist.my pages...")
 
     # TODO(P01): Update with actual Carlist.my search results URL
-    search_url = "https://www.carlist.my/search?make=Mercedes-Benz&page=1"  # Placeholder
-    listing_url = "https://www.carlist.my/car/1234567-mercedes-benz-c-class-2017"  # Placeholder
+    search_url = "https://www.carlist.my/cars-for-sale/mercedes-benz/c-class/c200/malaysia"  # Placeholder
+    listing_url = "https://www.carlist.my/recon-cars/2023-mercedes-benz-c200-1-5-avantgarde-amg-isg-sedan-full-spec-2-memory-seat-panaromic-sunroof-power-boot-hud-360-camera-burmester-system-unreg/19046563"  # Placeholder
 
     print(f"  Search URL: {search_url}")
     print(f"  Listing URL: {listing_url}")

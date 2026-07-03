@@ -220,6 +220,8 @@ __marimo__/
 # --- AssetIQ project ---
 .env
 data/*.db
+backend/data/
+backend/scraper/cache/
 backend/ml/artifacts/
 secrets/
 backend/.venv/

@@ -5,6 +5,8 @@ sqlalchemy==2.0.38
 pydantic==2.10.6
 pydantic-settings==2.7.1
 odxtools==10.6.1    # pinned from range install
+beautifulsoup4==4.12.3
+playwright==1.49.1
 
 # Dev / test
 pytest==8.3.4
