@@ -11,7 +11,12 @@ from .dispatcher import BookingRecord
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL_ID = "gemini-1.5-flash"
+GEMINI_MODEL_ID = "gemini-2.5-flash"
+GEMINI_MODEL_FALLBACKS = (
+    GEMINI_MODEL_ID,
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+)
 _BOOKING_FIELDS = ("name", "workshop", "car_model", "purpose", "date", "time")
 
 
@@ -116,15 +121,63 @@ def _clean_json_payload(text: str) -> dict:
     return json.loads(cleaned)
 
 
-def _extract_booking_via_gemini(booking: BookingRecord, settings) -> dict | None:
+def _extract_fields_from_response(response_text: str) -> dict | None:
+    if not response_text:
+        return None
+
+    payload = _clean_json_payload(response_text)
+    if payload.get("ambiguous") is True:
+        return None
+
+    required_fields = {"workshop", "car_model", "purpose", "date", "time"}
+    if not required_fields.issubset(payload):
+        return None
+
+    return {field: str(payload[field]) for field in required_fields}
+
+
+def _generate_gemini_response_text(prompt: str, settings) -> str:
     try:
-        import google.generativeai as genai
-    except Exception as exc:  # pragma: no cover - exercised via mocks in tests
-        raise RuntimeError("Gemini SDK unavailable") from exc
+        from google import genai
+    except ImportError:
+        genai = None
 
-    genai.configure(api_key=settings.gemini_api_key)
-    model = genai.GenerativeModel(GEMINI_MODEL_ID)
+    if genai is not None:
+        client = genai.Client(api_key=settings.gemini_api_key)
+        last_error: Exception | None = None
+        for model_id in GEMINI_MODEL_FALLBACKS:
+            try:
+                response = client.models.generate_content(model=model_id, contents=prompt)
+                return getattr(response, "text", None) or ""
+            except Exception as exc:  # pragma: no cover - network/client failures are environment-specific
+                last_error = exc
+        if last_error is not None:
+            raise last_error
 
+    try:
+        from google import generativeai
+    except ImportError as exc:  # pragma: no cover - exercised via mocks in tests
+        if genai is None:
+            raise RuntimeError("google-genai SDK unavailable. Run 'pip install google-genai'") from exc
+        raise
+
+    generativeai.configure(api_key=settings.gemini_api_key)
+    last_error = None
+    for model_id in GEMINI_MODEL_FALLBACKS:
+        try:
+            model = generativeai.GenerativeModel(model_id)
+            response = model.generate_content(prompt)
+            return getattr(response, "text", None) or ""
+        except Exception as exc:  # pragma: no cover - network/client failures are environment-specific
+            last_error = exc
+
+    if last_error is not None:
+        raise last_error
+
+    return ""
+
+
+def _extract_booking_via_gemini(booking: BookingRecord, settings) -> dict | None:
     confirmation_text = str(getattr(booking, "confirmation_text", "") or "")
     booking_context = json.dumps(
         {field: getattr(booking, field) for field in _BOOKING_FIELDS},
@@ -138,20 +191,8 @@ def _extract_booking_via_gemini(booking: BookingRecord, settings) -> dict | None
         f"Structured booking fields: {booking_context}"
     )
 
-    response = model.generate_content(prompt)
-    response_text = getattr(response, "text", None) or ""
-    if not response_text:
-        return None
-
-    payload = _clean_json_payload(response_text)
-    if payload.get("ambiguous") is True:
-        return None
-
-    required_fields = {"workshop", "car_model", "purpose", "date", "time"}
-    if not required_fields.issubset(payload):
-        return None
-
-    return {field: str(payload[field]) for field in required_fields}
+    response_text = _generate_gemini_response_text(prompt, settings)
+    return _extract_fields_from_response(response_text)
 
 
 def _deterministic_resolve(booking: BookingRecord, settings) -> dict:
