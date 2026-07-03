@@ -1,6 +1,8 @@
 import { OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Box3, Mesh, MeshPhysicalMaterial, Vector3 } from "three";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type { Group, OrthographicCamera } from "three";
 import { COMPONENTS, type ComponentId } from "../components/componentConfig";
 import { createCoupeBodyGeometry, createCoupeCabinGeometry } from "./coupeGeometry";
@@ -34,6 +36,19 @@ function canUseWebGL() {
 }
 
 const ORBIT_TARGET = [0, 0.28, 0] as const;
+const IMPORTED_CAR_MODEL_PATH = "/models/car-v2/11497_Car_v2.obj";
+const AERO_STRIPS: ReadonlyArray<{
+  position: readonly [number, number, number];
+  rotation: number;
+  size: [number, number, number];
+}> = [
+  { position: [0.7, 0.68, 0.92], rotation: -0.04, size: [1.72, 0.024, 0.026] },
+  { position: [1.22, 0.64, 0.92], rotation: -0.08, size: [0.96, 0.022, 0.026] },
+];
+const IMPORTED_WHEEL_HIGHLIGHTS = [
+  [-1.86, -0.05, 1.3],
+  [1.72, -0.05, 1.3],
+] as const;
 
 function getFitZoom(width: number, height: number) {
   return Math.max(1, Math.min(width / COUPE_SAFE_FRAME_WIDTH, height / COUPE_SAFE_FRAME_HEIGHT));
@@ -67,6 +82,116 @@ function CameraRig() {
   );
 }
 
+function ImportedComponentHighlights({ selected, onSelect }: CarSceneProps) {
+  const choosePart = (event: ThreeEvent<MouseEvent>, id: ComponentId) => {
+    event.stopPropagation();
+    onSelect(id);
+  };
+
+  return (
+    <group>
+      {COMPONENTS.map((component) => {
+        const region = HIGHLIGHT_REGIONS[component.id];
+        const active = selected === component.id;
+
+        if (region.kind === "wheelPair") {
+          return (
+            <group key={component.id}>
+              {IMPORTED_WHEEL_HIGHLIGHTS.map(([x, y, z]) => (
+                <mesh key={`imported-wheel-${x}`} position={[x, y, z]} onClick={(event) => choosePart(event, component.id)}>
+                  <torusGeometry args={[0.62, active ? 0.07 : 0.04, 16, 88]} />
+                  <meshBasicMaterial color="#7ffff5" transparent opacity={active ? 0.72 : 0.2} depthTest={false} />
+                </mesh>
+              ))}
+            </group>
+          );
+        }
+
+        return (
+          <group key={component.id}>
+            <mesh
+              position={[region.position[0], region.position[1], region.position[2]]}
+              renderOrder={4}
+              onClick={(event) => choosePart(event, component.id)}
+            >
+              <boxGeometry args={[region.size[0], region.size[1], region.size[2]]} />
+              <meshStandardMaterial
+                color="#00d2be"
+                emissive="#00d2be"
+                emissiveIntensity={active ? 0.58 : 0.1}
+                transparent
+                opacity={active ? 0.34 : 0.08}
+                depthWrite={false}
+                depthTest={false}
+                metalness={0.16}
+                roughness={0.24}
+              />
+            </mesh>
+            {active && (
+              <mesh position={[region.position[0], region.position[1], region.position[2] + 0.02]} renderOrder={5}>
+                <boxGeometry args={[region.size[0] + 0.14, region.size[1] + 0.1, region.size[2] + 0.14]} />
+                <meshBasicMaterial color="#7ffff5" transparent opacity={0.72} wireframe depthTest={false} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function ImportedCarModel({ selected, onSelect }: CarSceneProps) {
+  const source = useLoader(OBJLoader, IMPORTED_CAR_MODEL_PATH);
+  const bodyMaterial = useMemo(
+    () =>
+      new MeshPhysicalMaterial({
+        color: "#263f42",
+        emissive: "#0a2625",
+        emissiveIntensity: 0.14,
+        metalness: 0.5,
+        roughness: 0.3,
+        clearcoat: 0.62,
+        clearcoatRoughness: 0.26,
+        transparent: true,
+        opacity: 0.84,
+        depthWrite: false,
+      }),
+    [],
+  );
+  const model = useMemo(() => {
+    const clone = source.clone(true);
+    const bounds = new Box3().setFromObject(clone);
+    const center = bounds.getCenter(new Vector3());
+    clone.position.sub(center);
+
+    clone.traverse((child) => {
+      if (!(child instanceof Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      child.material = bodyMaterial;
+    });
+
+    return clone;
+  }, [bodyMaterial, source]);
+
+  return (
+    <>
+      <group
+        position={[0, 0.42, 0]}
+        rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+        scale={[0.029, 0.029, 0.029]}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect("service");
+        }}
+      >
+        <primitive object={model} />
+      </group>
+      <ImportedComponentHighlights selected={selected} onSelect={onSelect} />
+    </>
+  );
+}
+
 function ProceduralCoupe({ selected, onSelect }: CarSceneProps) {
   const group = useRef<Group>(null);
   const [pausedUntil, setPausedUntil] = useState(0);
@@ -91,14 +216,14 @@ function ProceduralCoupe({ selected, onSelect }: CarSceneProps) {
   };
   const cabinPosition = HIGHLIGHT_REGIONS.service.position;
   const wheelPositions = [
-    [-1.46, -0.06, 1.06],
-    [-1.46, -0.06, -1.06],
-    [1.48, -0.06, 1.06],
-    [1.48, -0.06, -1.06],
+    [-1.86, -0.05, 1.16],
+    [-1.86, -0.05, -1.16],
+    [1.72, -0.05, 1.16],
+    [1.72, -0.05, -1.16],
   ] as const;
   const visibleWheelRims = [
-    [-1.46, -0.06, 1.18],
-    [1.48, -0.06, 1.18],
+    [-1.86, -0.05, 1.28],
+    [1.72, -0.05, 1.28],
   ] as const;
 
   const renderHighlight = (id: ComponentId) => {
@@ -190,21 +315,23 @@ function ProceduralCoupe({ selected, onSelect }: CarSceneProps) {
         <meshPhysicalMaterial color="#030606" metalness={0.95} roughness={0.18} clearcoat={0.85} />
       </mesh>
 
-      <mesh position={[-0.44, 0.9, 0.78]} rotation={[0, 0, -0.07]}>
-        <boxGeometry args={[1.78, 0.055, 0.035]} />
-        <meshBasicMaterial color="#e6fffb" transparent opacity={0.62} />
-      </mesh>
+      {AERO_STRIPS.map((strip) => (
+        <mesh key={`aero-strip-${strip.position[0]}`} position={strip.position} rotation={[0, 0, strip.rotation]}>
+          <boxGeometry args={strip.size} />
+          <meshBasicMaterial color="#e6fffb" transparent opacity={0.52} />
+        </mesh>
+      ))}
 
-      <mesh position={[-0.08, 0.42, 1.02]}>
-        <boxGeometry args={[4.54, 0.04, 0.035]} />
-        <meshBasicMaterial color="#6df4e8" transparent opacity={0.22} />
+      <mesh position={[-0.2, 0.25, 1.04]}>
+        <boxGeometry args={[4.6, 0.028, 0.026]} />
+        <meshBasicMaterial color="#6df4e8" transparent opacity={0.18} />
       </mesh>
 
       {COMPONENTS.map((component) => renderHighlight(component.id))}
 
       {wheelPositions.map(([x, y, z]) => (
         <mesh key={`${x}-${z}`} position={[x, y, z]} rotation={[Math.PI / 2, 0, 0]} onClick={(event) => choosePart(event, "brakes")}>
-          <cylinderGeometry args={[0.43, 0.43, 0.22, 56]} />
+          <cylinderGeometry args={[0.54, 0.54, 0.3, 80]} />
           <meshStandardMaterial
             color="#020404"
             emissive={selected === "brakes" ? "#00d2be" : "#000000"}
@@ -215,18 +342,30 @@ function ProceduralCoupe({ selected, onSelect }: CarSceneProps) {
         </mesh>
       ))}
       {visibleWheelRims.map(([x, y, z]) => (
+        <mesh key={`arch-shadow-${x}`} position={[x, y + 0.02, z + 0.005]}>
+          <torusGeometry args={[0.62, 0.03, 12, 96]} />
+          <meshBasicMaterial color="#141716" transparent opacity={0.55} />
+        </mesh>
+      ))}
+      {visibleWheelRims.map(([x, y, z]) => (
+        <mesh key={`arch-lip-${x}`} position={[x, y + 0.02, z + 0.02]}>
+          <torusGeometry args={[0.6, 0.044, 18, 96]} />
+          <meshStandardMaterial color="#102021" emissive="#001312" emissiveIntensity={0.02} metalness={0.72} roughness={0.25} />
+        </mesh>
+      ))}
+      {visibleWheelRims.map(([x, y, z]) => (
         <mesh key={`rim-${x}`} position={[x, y, z]}>
-          <torusGeometry args={[0.32, 0.035, 12, 48]} />
+          <torusGeometry args={[0.38, 0.06, 18, 80]} />
           <meshBasicMaterial color="#00d2be" transparent opacity={selected === "brakes" ? 0.82 : 0.18} />
         </mesh>
       ))}
       {[
-        [-2.3, 0.2, 1.03],
-        [2.46, 0.16, 1.03],
+        [-2.58, 0.2, 1.08],
+        [2.62, 0.14, 1.08],
       ].map(([x, y, z]) => (
         <mesh key={`lamp-${x}`} position={[x, y, z]}>
-          <boxGeometry args={[0.16, 0.06, 0.035]} />
-          <meshBasicMaterial color={x > 0 ? "#bffff7" : "#b91414"} transparent opacity={0.75} />
+          <boxGeometry args={[0.18, 0.042, 0.026]} />
+          <meshBasicMaterial color={x > 0 ? "#bffff7" : "#b91414"} transparent opacity={0.7} />
         </mesh>
       ))}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.25, 0]}>
@@ -279,7 +418,9 @@ export function CarScene({ selected, onSelect }: CarSceneProps) {
         <ambientLight intensity={0.58} />
         <directionalLight position={[4, 7, 4]} intensity={2.1} />
         <pointLight color="#00d2be" position={[-4, 2, -3]} intensity={36} />
-        <ProceduralCoupe selected={selected} onSelect={onSelect} />
+        <Suspense fallback={<ProceduralCoupe selected={selected} onSelect={onSelect} />}>
+          <ImportedCarModel selected={selected} onSelect={onSelect} />
+        </Suspense>
         <CameraRig />
       </Canvas>
     </div>

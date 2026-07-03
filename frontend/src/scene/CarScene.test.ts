@@ -21,11 +21,11 @@ test("dashboard styling does not draw a second CSS orbit ring", () => {
   expect(themeCss).not.toMatch(/\.dashboard-stage::after\s*{[^}]*border:/s);
 });
 
-test("procedural coupe body uses a beveled smooth geometry", () => {
+test("procedural coupe body uses a smooth sectioned geometry", () => {
   const geometry = createCoupeBodyGeometry();
 
-  expect(geometry.type).toBe("ExtrudeGeometry");
-  expect(geometry.attributes.position.count).toBeGreaterThan(120);
+  expect(geometry.type).toBe("BufferGeometry");
+  expect(geometry.attributes.position.count).toBeGreaterThan(300);
 
   geometry.dispose();
 });
@@ -58,13 +58,13 @@ test("procedural coupe body is wide enough to avoid a stretched limousine look",
   geometry.dispose();
 });
 
-test("procedural coupe cabin stays low for a fastback AMG GT silhouette", () => {
+test("procedural coupe cabin forms a smooth concept-car dome", () => {
   const geometry = createCoupeCabinGeometry();
   geometry.computeBoundingBox();
 
   const box = geometry.boundingBox as Box3;
   expect(box.max.x - box.min.x).toBeGreaterThan(2.25);
-  expect(box.max.y - box.min.y).toBeLessThan(0.95);
+  expect(box.max.y - box.min.y).toBeLessThan(1.15);
 
   geometry.dispose();
 });

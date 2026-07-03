@@ -11,12 +11,12 @@ export interface HighlightRegion {
 export const HIGHLIGHT_REGIONS: Record<ComponentId, HighlightRegion> = {
   engine: {
     kind: "box",
-    position: [1.12, 0.43, 0.2],
-    size: [1.48, 0.36, 1.36],
+    position: [1.46, 0.36, 0.18],
+    size: [1.44, 0.24, 1.48],
   },
   battery: {
     kind: "box",
-    position: [1.86, 0.43, -0.58],
+    position: [2.04, 0.31, -0.62],
     size: [0.5, 0.26, 0.5],
   },
   brakes: {
@@ -26,12 +26,12 @@ export const HIGHLIGHT_REGIONS: Record<ComponentId, HighlightRegion> = {
   },
   fuel: {
     kind: "box",
-    position: [-1.78, 0.34, 0.08],
+    position: [-2.02, 0.31, 0.08],
     size: [0.78, 0.32, 1.2],
   },
   mileage: {
     kind: "box",
-    position: [-0.24, 0.72, -0.34],
+    position: [-0.16, 0.88, -0.34],
     size: [0.48, 0.22, 0.5],
   },
   diagnostics: {
@@ -41,7 +41,7 @@ export const HIGHLIGHT_REGIONS: Record<ComponentId, HighlightRegion> = {
   },
   service: {
     kind: "cabin",
-    position: [-0.72, 0.79, 0.02],
-    size: [1.42, 0.62, 1.5],
+    position: [-0.36, 0.86, 0.02],
+    size: [2.02, 0.84, 1.74],
   },
 };
