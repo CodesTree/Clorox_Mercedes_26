@@ -3,7 +3,7 @@
 Date: 2026-07-03
 Track: Data
 Phase: 01 - Data & Scraper
-Status: Conditionally approved for controlled live smoke test only
+Status: Gate 1 live smoke complete - both live sites blocked by robots.txt
 
 ## Approval Conditions
 
@@ -126,6 +126,32 @@ Expected outcomes:
 Live smoke result:
 
 ```text
-PENDING - run the controlled live smoke command above and paste the resulting summary here.
+============================================================
+SCRAPER PIPELINE SUMMARY
+============================================================
+mode=live
+site=all
+use_network=True
+use_fixtures=False
+Timestamp:        2026-07-03T11:06:17.047129
+Mudah status:     blocked_by_robots
+Mudah fetched:    0
+Mudah stored:     0 (skipped 0)
+Mudah error:      robots.txt disallows fetching https://www.mudah.my/malaysia/cars-for-sale/mercedes-benz/c200?q=mercedes+benz+c200
+Carlist status:     blocked_by_robots
+Carlist fetched:    0
+Carlist stored:     0 (skipped 0)
+Carlist error:      robots.txt disallows fetching https://www.carlist.my/cars-for-sale/mercedes-benz/c-class/c200/malaysia
+Total stored:     0
+============================================================
 ```
 
+Gate 1 outcome:
+
+```text
+Both configured live public search URLs were blocked by robots.txt.
+No live listings were fetched.
+No live listings were stored.
+No synthetic rows were inserted.
+The blocked_by_robots outcome satisfies the conditional Gate 1 approval path.
+```
