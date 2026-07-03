@@ -38,9 +38,12 @@ class Predictor:
     def predict(self, profile: dict) -> dict:
         trees = self._per_tree(self._row(profile))
         value = float(np.mean(trees))
-        low = float(np.percentile(trees, INTERVAL_LOW_PCT))
+        low = max(0.0, float(np.percentile(trees, INTERVAL_LOW_PCT)))
         high = float(np.percentile(trees, INTERVAL_HIGH_PCT))
-        low = max(0.0, low)
+        # For a skewed per-tree sample the mean can fall outside the [4,96] band;
+        # clamp so the low_rm <= value_rm <= high_rm contract holds by construction.
+        high = max(high, value)
+        low = min(low, value)
         return {
             "value_rm": int(round(value)),
             "low_rm": int(round(low)),
@@ -57,6 +60,7 @@ class Predictor:
             raw_values.append(float(np.mean(self._per_tree(self._row(future)))))
         # enforce non-increasing (RF is not monotonic in age) and floor at 0
         monotonic = np.minimum.accumulate(np.maximum(raw_values, 0.0))
+        # degenerate zero-valuation base -> today=1.0, so retained_pct[0] reads 0.0 (not 1.0)
         today = monotonic[0] if monotonic[0] > 0 else 1.0
         return [
             {
