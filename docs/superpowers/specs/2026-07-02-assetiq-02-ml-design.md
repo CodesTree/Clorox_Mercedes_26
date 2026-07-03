@@ -115,6 +115,7 @@ Models electronic transmission-control-unit (TCU) hydraulic-adaptation wear:
 
 - **Production:** `RandomForestRegressor` (seeded; sensible n_estimators/max_depth, lightly tuned).
   > **TODO(Gate2):** finalize RF hyperparameters (n_estimators, max_depth, min_samples_leaf, max_features); record the search/rationale in `metrics.json`. Keep `random_state` fixed for reproducibility.
+  > **Resolved (P02 impl):** starting point `n_estimators=300, max_depth=20, min_samples_leaf=2, max_features="sqrt", random_state=42` — recorded in `metrics.json.rf_params`. On the full 12,859-row dataset this scores RF MAE≈21,919 RM / MAPE≈15.0% / R²≈0.74 vs the LR baseline MAE≈37,270 / MAPE≈30.8% / R²≈0.43. Gate 2 finalises. (The `OneHotEncoder` uses `drop="first"` so the LR baseline stays numerically stable.)
 - **Baseline:** `LinearRegression` on the same preprocessed features.
 
 ## Evaluation
@@ -125,6 +126,7 @@ Models electronic transmission-control-unit (TCU) hydraulic-adaptation wear:
   training timestamp.
 
 > **TODO(P02):** guard **MAPE** against near-zero target prices (exclude rows below a floor, or use a small epsilon) so a cheap listing can't explode the percentage. Document the choice in `metrics.json`.
+> **Resolved (P02 impl):** MAPE excludes rows with `price_rm < 5000` (`metrics.MAPE_FLOOR_RM`), recorded in `metrics.json.mape_floor_rm`.
 
 ## Prediction interval (the mockup's "92% confidence")
 
@@ -133,6 +135,7 @@ From the fitted RF, collect per-tree predictions for the input; report `value_rm
 `confidence` = the nominal coverage. Documented as ensemble-derived, not invented.
 
 > **TODO(Gate2):** empirically validate that the chosen tree-spread percentiles actually achieve ≈92% coverage on the validation folds; adjust the percentile band if not. Confirm `low_rm ≥ 0`.
+> **Resolved (P02 impl):** the 4th–96th-percentile per-tree band (nominal 0.92) achieves **empirical coverage ≈0.867** on the held-out GroupKFold folds — recorded in `metrics.json.interval`. Gate 2 decides whether to widen the band to hit 0.92. `predict()` floors `low_rm` at 0 and clamps so `low_rm ≤ value_rm ≤ high_rm` by construction.
 
 ## Depreciation curve (the mockup's retained-value line)
 
@@ -140,6 +143,7 @@ Hold the profile fixed, advance `age` forward N years, predict `value_rm` at eac
 `retained_pct = value_at_year / value_today`. Purely model-derived.
 
 > **TODO(P02):** set the max forecast horizon (e.g. 5–7 years) and a non-negative value floor; decide behaviour when advancing `age` pushes a class outside the training age range (clamp vs. extrapolate-with-warning).
+> **Resolved (P02 impl):** default horizon 5 years (caller-configurable via `depreciation(profile, years=…)`), value floored at 0, and the curve is forced non-increasing via `np.minimum.accumulate` (RF is not monotonic in `age`). `age` advances with `mileage` held fixed; out-of-range ages simply extrapolate through the RF with the monotonic clamp keeping the curve sane (no hard age cap).
 
 ## ⛔ Gate 2 — what I bring to you
 
