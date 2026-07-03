@@ -26,7 +26,7 @@ _RENAME = {
     "engineSize": "engine_size",
 }
 _ESSENTIAL = ["model", "year", "price_gbp", "transmission", "mileage", "fuel_type",
-              "engine_size"]
+              "engine_size", "tax", "mpg"]
 
 
 def load_raw(path: Path = RAW_CSV) -> pd.DataFrame:

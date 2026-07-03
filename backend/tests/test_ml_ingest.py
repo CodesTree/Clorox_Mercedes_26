@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from ml import ingest
@@ -71,3 +72,12 @@ def test_build_engineered_csv_writes_file(tmp_path):
     reloaded = pd.read_csv(dst)
     assert {"battery_soh", "trans_adapt_offset", "price_rm", "age"} <= set(reloaded.columns)
     assert len(reloaded) == len(df)
+
+
+def test_clean_drops_rows_with_null_essential_numeric_features():
+    frame = _raw_frame()
+    frame.loc[0, "tax"] = np.nan
+    frame.loc[1, "mpg"] = np.nan
+    out = ingest.clean(frame, fx_rate=5.90)
+    assert out["tax"].notna().all()
+    assert out["mpg"].notna().all()
