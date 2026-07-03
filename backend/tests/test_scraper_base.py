@@ -60,6 +60,32 @@ def test_respects_disallow_in_robots_txt(tmp_path):
         fetcher.fetch("https://www.example.com/blocked/page.html", use_cache=False)
 
 
+def test_crawl_delay_overrides_shorter_config_rate_limit(tmp_path):
+    clock = FakeClock()
+    fetcher = _fetcher(tmp_path, clock)
+    fetcher.load_robots_txt(
+        "www.example.com",
+        "User-agent: TestBot\nCrawl-delay: 5\nDisallow:\n",
+    )
+
+    fetcher._apply_rate_limit("https://www.example.com/listing/1")
+
+    assert clock.slept == [pytest.approx(5.0)]
+
+
+def test_config_rate_limit_overrides_shorter_crawl_delay(tmp_path):
+    clock = FakeClock()
+    fetcher = _fetcher(tmp_path, clock)
+    fetcher.load_robots_txt(
+        "www.example.com",
+        "User-agent: TestBot\nCrawl-delay: 1\nDisallow:\n",
+    )
+
+    fetcher._apply_rate_limit("https://www.example.com/listing/1")
+
+    assert clock.slept == [pytest.approx(2.0)]
+
+
 def test_cache_used_on_second_call(tmp_path, monkeypatch):
     clock = FakeClock()
     fetcher = _fetcher(tmp_path, clock)

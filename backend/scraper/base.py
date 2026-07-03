@@ -53,6 +53,7 @@ class PoliteFetcher:
         self.config.cache_dir.mkdir(parents=True, exist_ok=True)
         self.last_request_time = 0.0
         self._robots: dict[str, RobotFileParser] = {}
+        self._crawl_delays: dict[str, float] = {}
 
     def fetch(self, url: str, use_cache: bool = True) -> str:
         """Fetch a URL politely using a real Chromium browser."""
@@ -63,7 +64,7 @@ class PoliteFetcher:
             logger.debug("Cache hit for %s", url)
             return cache_file.read_text(encoding="utf-8")
 
-        self._apply_rate_limit()
+        self._apply_rate_limit(url)
 
         html = self._fetch_with_backoff(url)
         self.last_request_time = self._time()
@@ -95,6 +96,7 @@ class PoliteFetcher:
             logger.debug("Could not read robots.txt for %s", key)
             parser = RobotFileParser()
         self._robots[key] = parser
+        self._record_crawl_delay(key, parser)
         return parser
 
     def load_robots_txt(self, domain: str, content: str) -> None:
@@ -102,11 +104,29 @@ class PoliteFetcher:
         parser = RobotFileParser()
         parser.parse(_strip_ua_versions(content).splitlines())
         self._robots[domain] = parser
+        self._record_crawl_delay(domain, parser)
 
-    def _apply_rate_limit(self) -> None:
+    def _record_crawl_delay(self, domain: str, parser: RobotFileParser) -> None:
+        delay = parser.crawl_delay(self.config.user_agent)
+        if delay is None:
+            delay = parser.crawl_delay("*")
+        if delay is not None:
+            self._crawl_delays[domain] = float(delay)
+
+    def _effective_rate_limit_seconds(self, url: str | None = None) -> float:
+        rate_limit = self.config.rate_limit_seconds
+        if url:
+            domain = urlparse(url).netloc
+            crawl_delay = self._crawl_delays.get(domain)
+            if crawl_delay is not None:
+                rate_limit = max(rate_limit, crawl_delay)
+        return rate_limit
+
+    def _apply_rate_limit(self, url: str | None = None) -> None:
+        rate_limit_seconds = self._effective_rate_limit_seconds(url)
         elapsed = self._time() - self.last_request_time
-        if elapsed < self.config.rate_limit_seconds:
-            wait = (self.config.rate_limit_seconds - elapsed) + random.uniform(
+        if elapsed < rate_limit_seconds:
+            wait = (rate_limit_seconds - elapsed) + random.uniform(
                 0, self.config.rate_limit_jitter
             )
             self._sleep(wait)
