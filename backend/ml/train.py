@@ -38,7 +38,7 @@ INTERVAL_HIGH_PCT = 96.0
 def build_preprocessor() -> ColumnTransformer:
     return ColumnTransformer(
         transformers=[
-            ("cat", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL),
+            ("cat", OneHotEncoder(handle_unknown="ignore", drop="first"), CATEGORICAL),
             ("num", StandardScaler(), NUMERIC),
         ]
     )

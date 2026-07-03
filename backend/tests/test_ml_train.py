@@ -73,3 +73,14 @@ def test_main_writes_model_and_metrics(tmp_path):
     pipe = joblib.load(model_path)
     pred = pipe.predict(df.head(1))
     assert pred.shape == (1,)
+
+
+def test_onehot_avoids_dummy_variable_trap():
+    # With an intercept column the design matrix must stay full rank, or the
+    # LinearRegression baseline explodes (dummy-variable trap). drop='first' fixes it.
+    df = _engineered_frame()
+    prep = train.build_preprocessor()
+    Xt = prep.fit_transform(df[train.FEATURES])
+    Xt = np.asarray(Xt.todense()) if hasattr(Xt, "todense") else np.asarray(Xt)
+    design = np.hstack([np.ones((Xt.shape[0], 1)), Xt])
+    assert np.linalg.matrix_rank(design) == design.shape[1]
