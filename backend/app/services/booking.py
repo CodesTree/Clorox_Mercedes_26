@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app import orm
 from app.schemas import BookingIn, BookingOut
+from app.services.google_calendar import GoogleCalendarError, GoogleCalendarService
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,42 @@ class DryRunDispatcher:
             ),
         }
         return DispatchResult(status="dry_run", dispatched=False, dry_run=True, payload=payload)
+
+
+class SharedCalendarDispatcher:
+    def __init__(
+        self,
+        calendar_service: GoogleCalendarService,
+        fallback: BookingDispatcher | None = None,
+    ) -> None:
+        self.calendar_service = calendar_service
+        self.fallback = fallback or DryRunDispatcher()
+
+    def dispatch(self, booking: orm.Booking) -> DispatchResult:
+        if not self.calendar_service.configured:
+            result = self.fallback.dispatch(booking)
+            result.payload["calendar_mode"] = "shared"
+            return result
+
+        try:
+            event = self.calendar_service.create_booking_event(booking)
+        except (GoogleCalendarError, Exception) as exc:
+            result = self.fallback.dispatch(booking)
+            result.payload["calendar_mode"] = "shared"
+            result.payload["calendar_error"] = str(exc)
+            return result
+
+        booking.calendar_event_id = event.event_id
+        return DispatchResult(
+            status="booked",
+            dispatched=True,
+            dry_run=False,
+            payload={
+                "calendar_mode": "shared",
+                "calendar_event_id": event.event_id,
+                "calendar_html_link": event.html_link,
+            },
+        )
 
 
 def create_booking(

@@ -107,12 +107,21 @@ export interface BookingIn {
   time: string;
 }
 
+export interface BookingPayload {
+  calendar_mode?: "shared";
+  calendar_event_id?: string;
+  calendar_html_link?: string;
+  calendar_error?: string;
+  text?: string;
+  error?: string;
+}
+
 export interface BookingOut {
   booking_id: number;
   status: string;
   dispatched: boolean;
   dry_run: boolean;
-  payload: Record<string, unknown> | null;
+  payload: BookingPayload | null;
 }
 
 export class ApiError extends Error {
@@ -146,7 +155,7 @@ async function request<T>(path: string, init?: RequestInit, params?: Record<stri
       const body = await resp.json();
       detail = typeof body.detail === "string" ? body.detail : detail;
     } catch {
-      // Keep the status text fallback.
+      // Keep the HTTP status fallback.
     }
     throw new ApiError(detail, resp.status);
   }
