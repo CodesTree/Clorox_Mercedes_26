@@ -332,7 +332,7 @@ button {
 
 .car-stage {
   position: absolute;
-  inset: 100px 128px 108px;
+  inset: 88px 72px 86px;
   display: grid;
   place-items: center;
   z-index: 1;
@@ -340,8 +340,8 @@ button {
 
 .car-scene,
 .car-fallback {
-  width: min(100%, 1040px);
-  height: min(62vh, 580px);
+  width: min(100%, 1220px);
+  height: min(70vh, 640px);
 }
 
 .car-scene canvas {
@@ -632,8 +632,14 @@ button {
 }
 
 .booking-modal {
+  position: relative;
   width: min(100%, 540px);
   padding: 22px;
+  overflow: hidden;
+}
+
+.booking-modal--picker-open {
+  min-height: 560px;
 }
 
 .modal-header {
@@ -755,19 +761,27 @@ button {
   text-transform: uppercase;
 }
 
-.workshop-picker {
+.workshop-picker-shell {
   position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
+  inset: 0;
   z-index: 30;
-  width: min(520px, calc(100vw - 72px));
   display: grid;
+  place-items: stretch;
+  background: rgba(5, 9, 10, 0.94);
+  backdrop-filter: blur(12px);
+  padding: 22px;
+}
+
+.workshop-picker {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(150px, 0.72fr) minmax(0, 1fr);
   gap: 12px;
   border: 1px solid var(--line-bright);
   border-radius: 8px;
   background: rgba(7, 11, 12, 0.96);
   box-shadow: 0 22px 58px rgba(0, 0, 0, 0.66), 0 0 34px rgba(0, 210, 190, 0.12);
-  padding: 14px;
+  padding: 18px;
 }
 
 .workshop-picker__header {
@@ -845,8 +859,9 @@ button {
 
 .workshop-options {
   display: grid;
+  align-content: start;
   gap: 8px;
-  max-height: 218px;
+  min-height: 0;
   overflow: auto;
   padding-right: 2px;
 }
@@ -1015,8 +1030,7 @@ button {
   }
 
   .workshop-picker {
-    position: static;
-    width: 100%;
+    grid-template-rows: auto 150px minmax(0, 1fr);
   }
 
   .workshop-summary,

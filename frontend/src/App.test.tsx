@@ -198,7 +198,9 @@ test("booking modal suggests nearest Mercedes centre and submits the hidden insp
   expect(within(modal).getByText(/Current OBD location/i)).toBeInTheDocument();
 
   fireEvent.click(within(modal).getByRole("button", { name: /Change workshop/i }));
+  expect(modal).toHaveClass("booking-modal--picker-open");
   const workshopDialog = screen.getByRole("dialog", { name: /Select Mercedes centre/i });
+  expect(workshopDialog.parentElement).toHaveClass("workshop-picker-shell");
   const workshopButtons = within(workshopDialog).getAllByRole("button", { name: /Select .* km away/i });
   expect(workshopButtons[0]).toHaveTextContent("Hap Seng Star KL");
 

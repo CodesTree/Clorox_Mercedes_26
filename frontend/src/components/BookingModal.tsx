@@ -51,7 +51,12 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <section className="booking-modal" role="dialog" aria-modal="true" aria-label="Book inspection">
+      <section
+        className={`booking-modal${pickerOpen ? " booking-modal--picker-open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Book inspection"
+      >
         <div className="modal-header">
           <div>
             <span className="eyebrow">Official Mercedes slot</span>
@@ -83,13 +88,7 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
             <WorkshopSelector
               selectedWorkshop={selectedWorkshop}
               rankedWorkshops={rankedWorkshops}
-              pickerOpen={pickerOpen}
               onOpenPicker={() => setPickerOpen(true)}
-              onClosePicker={() => setPickerOpen(false)}
-              onSelectWorkshop={(nextWorkshop) => {
-                setSelectedWorkshopId(nextWorkshop.id);
-                setPickerOpen(false);
-              }}
             />
           ) : null}
           <label>
@@ -109,6 +108,19 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
           </button>
         </form>
         {status ? <p className="modal-status">{status}</p> : null}
+        {pickerOpen && selectedWorkshop ? (
+          <div className="workshop-picker-shell">
+            <WorkshopPicker
+              selectedWorkshop={selectedWorkshop}
+              rankedWorkshops={rankedWorkshops}
+              onClosePicker={() => setPickerOpen(false)}
+              onSelectWorkshop={(nextWorkshop) => {
+                setSelectedWorkshopId(nextWorkshop.id);
+                setPickerOpen(false);
+              }}
+            />
+          </div>
+        ) : null}
       </section>
     </div>
   );
@@ -117,19 +129,12 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
 interface WorkshopSelectorProps {
   selectedWorkshop: RankedWorkshop;
   rankedWorkshops: RankedWorkshop[];
-  pickerOpen: boolean;
   onOpenPicker: () => void;
-  onClosePicker: () => void;
-  onSelectWorkshop: (workshop: RankedWorkshop) => void;
 }
 
 function WorkshopSelector({
   selectedWorkshop,
-  rankedWorkshops,
-  pickerOpen,
   onOpenPicker,
-  onClosePicker,
-  onSelectWorkshop,
 }: WorkshopSelectorProps) {
   return (
     <div className="workshop-field">
@@ -148,51 +153,65 @@ function WorkshopSelector({
       <p>
         {currentVehicleLocation.label} - {currentVehicleLocation.area}
       </p>
-
-      {pickerOpen ? (
-        <section className="workshop-picker" role="dialog" aria-label="Select Mercedes centre">
-          <div className="workshop-picker__header">
-            <div>
-              <span className="eyebrow">Closest official centres</span>
-              <h3>Select Mercedes centre</h3>
-            </div>
-            <button type="button" className="icon-button" onClick={onClosePicker} aria-label="Close workshop map">
-              x
-            </button>
-          </div>
-          <div className="workshop-map" aria-hidden="true">
-            <span className="map-grid" />
-            <span className="vehicle-pin">CAR</span>
-            {rankedWorkshops.map((workshop, index) => (
-              <span
-                key={workshop.id}
-                className={`workshop-pin${workshop.id === selectedWorkshop.id ? " workshop-pin--active" : ""}`}
-                style={{ left: `${workshop.mapX}%`, top: `${workshop.mapY}%` }}
-              >
-                {index + 1}
-              </span>
-            ))}
-          </div>
-          <div className="workshop-options">
-            {rankedWorkshops.map((workshop) => (
-              <button
-                type="button"
-                key={workshop.id}
-                className={`workshop-option${workshop.id === selectedWorkshop.id ? " workshop-option--active" : ""}`}
-                onClick={() => onSelectWorkshop(workshop)}
-              >
-                <span>
-                  <strong>{workshop.name}</strong>
-                  <small>{workshop.address}</small>
-                </span>
-                <em>
-                  Select {workshop.name} - {formatDistanceKm(workshop.distanceKm)}
-                </em>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
+  );
+}
+
+interface WorkshopPickerProps {
+  selectedWorkshop: RankedWorkshop;
+  rankedWorkshops: RankedWorkshop[];
+  onClosePicker: () => void;
+  onSelectWorkshop: (workshop: RankedWorkshop) => void;
+}
+
+function WorkshopPicker({
+  selectedWorkshop,
+  rankedWorkshops,
+  onClosePicker,
+  onSelectWorkshop,
+}: WorkshopPickerProps) {
+  return (
+    <section className="workshop-picker" role="dialog" aria-label="Select Mercedes centre">
+      <div className="workshop-picker__header">
+        <div>
+          <span className="eyebrow">Closest official centres</span>
+          <h3>Select Mercedes centre</h3>
+        </div>
+        <button type="button" className="icon-button" onClick={onClosePicker} aria-label="Close workshop map">
+          x
+        </button>
+      </div>
+      <div className="workshop-map" aria-hidden="true">
+        <span className="map-grid" />
+        <span className="vehicle-pin">CAR</span>
+        {rankedWorkshops.map((workshop, index) => (
+          <span
+            key={workshop.id}
+            className={`workshop-pin${workshop.id === selectedWorkshop.id ? " workshop-pin--active" : ""}`}
+            style={{ left: `${workshop.mapX}%`, top: `${workshop.mapY}%` }}
+          >
+            {index + 1}
+          </span>
+        ))}
+      </div>
+      <div className="workshop-options">
+        {rankedWorkshops.map((workshop) => (
+          <button
+            type="button"
+            key={workshop.id}
+            className={`workshop-option${workshop.id === selectedWorkshop.id ? " workshop-option--active" : ""}`}
+            onClick={() => onSelectWorkshop(workshop)}
+          >
+            <span>
+              <strong>{workshop.name}</strong>
+              <small>{workshop.address}</small>
+            </span>
+            <em>
+              Select {workshop.name} - {formatDistanceKm(workshop.distanceKm)}
+            </em>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

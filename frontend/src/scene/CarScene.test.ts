@@ -7,6 +7,7 @@ import { HIGHLIGHT_REGIONS } from "./highlightRegions";
 import {
   COUPE_CAMERA_MODE,
   COUPE_CAMERA_POSITION,
+  COUPE_MAX_ZOOM_RATIO,
   COUPE_ORBIT_OUTER_RADIUS,
   COUPE_ROTATION_BASE_Y,
   COUPE_SAFE_FRAME_HEIGHT,
@@ -77,8 +78,9 @@ test("procedural coupe opens in a side-profile presentation", () => {
 
 test("camera uses an orthographic safe frame so the car and orbit ring cannot crop", () => {
   expect(COUPE_CAMERA_MODE).toBe("orthographic");
-  expect(COUPE_SAFE_FRAME_WIDTH).toBeLessThan(COUPE_ORBIT_OUTER_RADIUS * 2 + 0.6);
-  expect(COUPE_SAFE_FRAME_HEIGHT).toBeLessThan(4.35);
+  expect(COUPE_SAFE_FRAME_WIDTH).toBeGreaterThan(COUPE_ORBIT_OUTER_RADIUS * 2 + 1);
+  expect(COUPE_SAFE_FRAME_HEIGHT).toBeGreaterThan(4.35);
+  expect(COUPE_MAX_ZOOM_RATIO).toBeLessThanOrEqual(1.24);
   expect(carSceneSource).not.toContain("COUPE_TOP_VIEW_SAFE_FRAME_HEIGHT");
 });
 
@@ -90,14 +92,20 @@ test("orbit controls use a fixed close start with smooth damped motion", () => {
 });
 
 test("dashboard reserves a larger canvas for the car scene", () => {
-  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*width:\s*min\(100%,\s*1040px\);/s);
-  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*height:\s*min\(62vh,\s*580px\);/s);
+  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*width:\s*min\(100%,\s*1220px\);/s);
+  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*height:\s*min\(70vh,\s*640px\);/s);
 });
 
 test("component selectors map to local highlight regions instead of tinting the full body", () => {
   expect(Object.keys(HIGHLIGHT_REGIONS).sort()).toEqual(COMPONENTS.map((component) => component.id).sort());
   expect(HIGHLIGHT_REGIONS.engine.size[0]).toBeLessThan(2);
   expect(HIGHLIGHT_REGIONS.fuel.size[0]).toBeLessThan(1);
+  expect(HIGHLIGHT_REGIONS.engine.shape).toBe("engineBay");
+  expect(HIGHLIGHT_REGIONS.fuel.shape).toBe("fuelTank");
+  expect(HIGHLIGHT_REGIONS.battery.shape).toBe("batteryModule");
+  expect(carSceneSource).toContain("renderImportedShapedHighlight");
+  expect(carSceneSource).toContain("<capsuleGeometry");
+  expect(carSceneSource).toContain("<cylinderGeometry");
   expect(carSceneSource).not.toContain('emissive={selected === "engine" ?');
   expect(carSceneSource).toContain("depthTest={false}");
 });

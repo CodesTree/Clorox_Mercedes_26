@@ -6,7 +6,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type { Group, OrthographicCamera } from "three";
 import { COMPONENTS, type ComponentId } from "../components/componentConfig";
 import { createCoupeBodyGeometry, createCoupeCabinGeometry } from "./coupeGeometry";
-import { HIGHLIGHT_REGIONS } from "./highlightRegions";
+import { HIGHLIGHT_REGIONS, type HighlightRegion } from "./highlightRegions";
 import {
   COUPE_CAMERA_POSITION,
   COUPE_MAX_ZOOM_RATIO,
@@ -50,6 +50,26 @@ const IMPORTED_WHEEL_HIGHLIGHTS = [
   [1.72, -0.05, 1.3],
 ] as const;
 
+function HighlightMaterial({ active }: { active: boolean }) {
+  return (
+    <meshStandardMaterial
+      color="#00d2be"
+      emissive="#00d2be"
+      emissiveIntensity={active ? 0.58 : 0.1}
+      transparent
+      opacity={active ? 0.34 : 0.08}
+      depthWrite={false}
+      depthTest={false}
+      metalness={0.16}
+      roughness={0.24}
+    />
+  );
+}
+
+function HighlightWireMaterial() {
+  return <meshBasicMaterial color="#7ffff5" transparent opacity={0.72} wireframe depthTest={false} />;
+}
+
 function getFitZoom(width: number, height: number) {
   return Math.max(1, Math.min(width / COUPE_SAFE_FRAME_WIDTH, height / COUPE_SAFE_FRAME_HEIGHT));
 }
@@ -82,6 +102,90 @@ function CameraRig() {
   );
 }
 
+function renderImportedShapedHighlight(region: HighlightRegion, active: boolean) {
+  if (region.shape === "engineBay") {
+    return (
+      <>
+        <mesh position={[-0.16, 0.02, 0.22]} rotation={[0, 0, Math.PI / 2]} renderOrder={4}>
+          <capsuleGeometry args={[0.17, region.size[0] * 0.58, 12, 28]} />
+          <HighlightMaterial active={active} />
+        </mesh>
+        <mesh position={[-0.16, 0.02, -0.22]} rotation={[0, 0, Math.PI / 2]} renderOrder={4}>
+          <capsuleGeometry args={[0.17, region.size[0] * 0.58, 12, 28]} />
+          <HighlightMaterial active={active} />
+        </mesh>
+        <mesh position={[0.34, 0.02, 0]} rotation={[Math.PI / 2, 0, 0]} renderOrder={4}>
+          <cylinderGeometry args={[0.24, 0.24, 0.48, 36]} />
+          <HighlightMaterial active={active} />
+        </mesh>
+        {active && (
+          <mesh position={[0.08, 0.02, 0]} rotation={[Math.PI / 2, 0, 0]} renderOrder={5}>
+            <torusGeometry args={[0.56, 0.035, 12, 88]} />
+            <HighlightWireMaterial />
+          </mesh>
+        )}
+      </>
+    );
+  }
+
+  if (region.shape === "fuelTank") {
+    return (
+      <>
+        <mesh rotation={[Math.PI / 2, 0, 0]} renderOrder={4}>
+          <capsuleGeometry args={[0.24, region.size[2] * 0.64, 12, 34]} />
+          <HighlightMaterial active={active} />
+        </mesh>
+        {active && (
+          <mesh rotation={[Math.PI / 2, 0, 0]} renderOrder={5}>
+            <torusGeometry args={[0.36, 0.035, 12, 72]} />
+            <HighlightWireMaterial />
+          </mesh>
+        )}
+      </>
+    );
+  }
+
+  if (region.shape === "batteryModule") {
+    return (
+      <>
+        <mesh rotation={[0, 0, Math.PI / 2]} renderOrder={4}>
+          <capsuleGeometry args={[0.17, 0.42, 10, 28]} />
+          <HighlightMaterial active={active} />
+        </mesh>
+        <mesh position={[0.18, 0.01, 0.16]} renderOrder={4}>
+          <sphereGeometry args={[0.08, 18, 12]} />
+          <HighlightMaterial active={active} />
+        </mesh>
+        <mesh position={[0.18, 0.01, -0.16]} renderOrder={4}>
+          <sphereGeometry args={[0.08, 18, 12]} />
+          <HighlightMaterial active={active} />
+        </mesh>
+        {active && (
+          <mesh rotation={[Math.PI / 2, 0, 0]} renderOrder={5}>
+            <torusGeometry args={[0.28, 0.025, 10, 60]} />
+            <HighlightWireMaterial />
+          </mesh>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <mesh rotation={[Math.PI / 2, 0, 0]} renderOrder={4}>
+        <cylinderGeometry args={[region.size[0] * 0.42, region.size[0] * 0.42, region.size[2], 6]} />
+        <HighlightMaterial active={active} />
+      </mesh>
+      {active && (
+        <mesh rotation={[Math.PI / 2, 0, 0]} renderOrder={5}>
+          <torusGeometry args={[region.size[0] * 0.55, 0.025, 8, 48]} />
+          <HighlightWireMaterial />
+        </mesh>
+      )}
+    </>
+  );
+}
+
 function ImportedComponentHighlights({ selected, onSelect }: CarSceneProps) {
   const choosePart = (event: ThreeEvent<MouseEvent>, id: ComponentId) => {
     event.stopPropagation();
@@ -109,30 +213,12 @@ function ImportedComponentHighlights({ selected, onSelect }: CarSceneProps) {
 
         return (
           <group key={component.id}>
-            <mesh
+            <group
               position={[region.position[0], region.position[1], region.position[2]]}
-              renderOrder={4}
               onClick={(event) => choosePart(event, component.id)}
             >
-              <boxGeometry args={[region.size[0], region.size[1], region.size[2]]} />
-              <meshStandardMaterial
-                color="#00d2be"
-                emissive="#00d2be"
-                emissiveIntensity={active ? 0.58 : 0.1}
-                transparent
-                opacity={active ? 0.34 : 0.08}
-                depthWrite={false}
-                depthTest={false}
-                metalness={0.16}
-                roughness={0.24}
-              />
-            </mesh>
-            {active && (
-              <mesh position={[region.position[0], region.position[1], region.position[2] + 0.02]} renderOrder={5}>
-                <boxGeometry args={[region.size[0] + 0.14, region.size[1] + 0.1, region.size[2] + 0.14]} />
-                <meshBasicMaterial color="#7ffff5" transparent opacity={0.72} wireframe depthTest={false} />
-              </mesh>
-            )}
+              {renderImportedShapedHighlight(region, active)}
+            </group>
           </group>
         );
       })}
