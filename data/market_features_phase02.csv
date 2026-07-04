@@ -1,0 +1,67 @@
+source,listing_url,model,year,age,mileage,price_rm,transmission,fuel_type,engine_size,variant,location,seller_type,posted_at,scraped_at
+carlist,https://www.carlist.my/used-cars/2023-mercedes-benz-c200-1-5-avantgarde-sedan-w206-mileage-19k-km-only-full-service-record-nz-wheels-under-mers-warranty-till-may-2027-tiptop/19137839,C_CLASS,2023,3,17500,179800,Automatic,Petrol,,C200,Selangor,dealer,,2026-07-03T18:33:57.786311
+carlist,https://www.carlist.my/used-cars/2017-18-mercedes-benz-c200-2-0-amg-line-edition-sedan/19142107,C_CLASS,2017,9,107500,82800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.786311
+carlist,https://www.carlist.my/used-cars/2020-mercedes-benz-c200-2-0-amg-line-edition-sedan/19122840,C_CLASS,2020,6,62500,131800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.786311
+carlist,https://www.carlist.my/used-cars/2019-mercedes-benz-c200-1-5-avantgarde-amg-line-edition-sedan/19142153,C_CLASS,2019,7,72500,111800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.786311
+carlist,https://www.carlist.my/used-cars/2010-mercedes-benz-c200-1-8-a-amg-full-spec/19088145,C_CLASS,2010,16,152500,29800,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.786311
+carlist,https://www.carlist.my/recon-cars/2020-mercedes-benz-c200-wagon/18115923,C_CLASS,2020,6,32500,170000,Automatic,Petrol,,C200,Selangor,dealer,,2026-07-03T18:33:57.786311
+carlist,https://www.carlist.my/used-cars/2018-mercedes-benz-c200-1-5-avantgarde-sedan/19140356,C_CLASS,2018,8,79800,85800,Automatic,Petrol,,C200,Selangor,dealer,,2026-07-03T18:33:57.786311
+carlist,https://www.carlist.my/recon-cars/2023-mercedes-benz-c200-1-5-avantgarde-amg-isg-sedan-full-spec-2-memory-seat-panaromic-sunroof-power-boot-hud-360-camera-burmester-system-unreg/19046563,C_CLASS,2023,3,32500,228000,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2019-mercedes-benz-c200-1-5-avantgarde-full-service-record-sedan/18858737,C_CLASS,2019,7,122500,92800,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2015-japan-spec-mercedes-benz-c200-2-0-amg-line-coupe/19087553,C_CLASS,2015,11,162500,65800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2017-mercedes-benz-c200-2-0-exclusive-a-sedan-w205/18870393,C_CLASS,2017,9,82500,63800,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/recon-cars/2021-mercedes-benz-c200-1-5-laureus-amg-line-sedan-low-mileage-car-grade-4-5-super-offer-promotion-ready-stock/19061242,C_CLASS,2021,5,22500,155000,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/recon-cars/2021-mercedes-benz-c200-1-5-laureus-amg-line-sedan-promotion-red-leather-seat-burmester-4-camera-hud/19061016,C_CLASS,2021,5,22500,162000,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2009-mercedes-benz-c200-1-8-kompressor/18980582,C_CLASS,2009,17,87500,21800,Automatic,Petrol,,C200,Selangor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/recon-cars/clearance-gaox2-rebate-2021-mercedes-benz-c200-2-0-amg-premium/18818540,C_CLASS,2021,5,7500,155000,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2022-mercedes-benz-c200-1-5-avantgarde-a/19136154,C_CLASS,2022,4,42500,169000,Automatic,Petrol,,C200,Penang,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/new-cars/2026-mercedes-benz-c200-1-5-amg-line-sedan-with-4-years-free-service/18971238,C_CLASS,2026,0,0,240332,Automatic,Petrol,,C200,Selangor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2021-mercedes-benz-c200-1-5-avantgarde-sedan/19022554,C_CLASS,2021,5,62500,166000,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2020-mercedes-benz-c200-2-0-amg-line-sedan/18743455,C_CLASS,2020,6,77500,123800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2019-mercedes-benz-c200-1-5-avantgarde-sedan/18623967,C_CLASS,2019,7,72500,98800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2016-mercedes-benz-c200-2-0-avantgarde-sedan/18681563,C_CLASS,2016,10,92500,67800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/recon-cars/2022-mercedes-benz-c200-1-5-avantgarde-sedan-brown-interior/16427898,C_CLASS,2022,4,7500,212000,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2018-mercedes-benz-c200-1-5-avantgarde-sedan-44k-km-mercedes-service-record/19143610,C_CLASS,2018,8,42500,103800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2016-reg-2021-mercedes-benz-c200-2-0-amg-line-sedan-59k-km/19163446,C_CLASS,2016,10,57500,82800,Automatic,Petrol,,C200,Johor,dealer,,2026-07-03T18:33:57.785311
+carlist,https://www.carlist.my/used-cars/2022-mercedes-benz-c200-1-5-avantgarde-sedan/19161799,C_CLASS,2022,4,37500,158500,Automatic,Petrol,,C200,Kuala Lumpur,dealer,,2026-07-03T18:33:57.784310
+mudah,https://www.mudah.my/2022-mercedes-benz-c200-1-5-avantgarde-my22-w206-115171356.htm,C_CLASS,2022,4,37499,158500,,Petrol,,C200,Kuala Lumpur - Setapak,dealer,2026-07-03,2026-07-03T17:47:31.933641
+mudah,https://www.mudah.my/2019-mercedes-benz-c200-1-5-avantgarde-ckd-a-115170279.htm,C_CLASS,2019,7,124999,85000,,Petrol,,C200,Johor - Skudai,private,2026-07-03,2026-07-03T17:47:31.932641
+mudah,https://www.mudah.my/2019-mercedes-benz-c200-1-5-facelift-115169651.htm,C_CLASS,2019,7,87499,104800,,Petrol,,C200,Johor - Skudai,dealer,2026-07-03,2026-07-03T17:47:31.931641
+mudah,https://www.mudah.my/owner-2019-nz-wheel-mercedes-c200-1-5-auto-avant-115165384.htm,C_CLASS,2019,7,114999,84800,,Petrol,,C200,Kuala Lumpur - City Centre,private,2026-07-03,2026-07-03T17:47:31.929632
+mudah,https://www.mudah.my/mercedes-benz-c200-1-5-convert-c63-amg-l-seat-2020-115164394.htm,C_CLASS,2020,6,87499,99800,,Petrol,,C200,Selangor - Others,dealer,2026-07-03,2026-07-03T17:47:31.927632
+mudah,https://www.mudah.my/mercedes-benz-c200-1-5-convert-c63-amg-f-lift-2020-115164393.htm,C_CLASS,2020,6,87499,99800,,Petrol,,C200,Kuala Lumpur - Others,dealer,2026-07-03,2026-07-03T17:47:31.925628
+mudah,https://www.mudah.my/mercedes-benz-c200-1-5-convert-c63-amg-f-lift-2019-115164322.htm,C_CLASS,2019,7,97499,90800,,Petrol,,C200,Selangor - Others,dealer,2026-07-03,2026-07-03T17:47:31.923641
+mudah,https://www.mudah.my/mercedes-benz-c200-1-5-convert-c63-amg-l-seat-2019-115164321.htm,C_CLASS,2019,7,97499,90800,,Petrol,,C200,Kuala Lumpur - Others,dealer,2026-07-03,2026-07-03T17:47:31.922631
+mudah,https://www.mudah.my/2010-mercedes-benz-c200-cgi-115144863.htm,C_CLASS,2010,16,154999,18000,,Petrol,,C200,Kuala Lumpur - Bukit Jalil,private,2026-07-03,2026-07-03T17:47:31.920622
+mudah,https://www.mudah.my/2016-mercedes-benz-c200-avantgarde-2-0-a-115121243.htm,C_CLASS,2016,10,92499,59800,,Petrol,,C200,Selangor - Cheras,dealer,2026-07-03,2026-07-03T17:47:31.918641
+mudah,https://www.mudah.my/2018-mercedes-benz-c200-1-5-avantgarde-facelift-115116596.htm,C_CLASS,2018,8,42499,103800,,Petrol,,C200,Johor - Skudai,dealer,2026-07-03,2026-07-03T17:47:31.917641
+mudah,https://www.mudah.my/mercedes-benz-c200-1-5-w206-f-ser-udr-wrty-2027-115108171.htm,C_CLASS,2023,3,62499,163800,,Petrol,,C200,Selangor - Seri Kembangan,dealer,2026-07-03,2026-07-03T17:47:31.916641
+mudah,https://www.mudah.my/7-7-sale-kaw-kaw-c200-laureus-yr-2020-merc-115096492.htm,C_CLASS,2020,6,27499,147000,,Petrol,,C200,Selangor - Puncak Alam,dealer,2026-07-02,2026-07-03T17:47:31.915643
+mudah,https://www.mudah.my/2017-mercedes-benz-c200-2-0-exclusive-model-115092399.htm,C_CLASS,2017,9,77499,76888,,Petrol,,C200,Kuala Lumpur - Solaris Dutamas,dealer,2026-07-03,2026-07-03T17:47:31.914643
+mudah,https://www.mudah.my/ori-fsr-2021-mercedes-benz-c200-1-5-doctor-owner-115080244.htm,C_CLASS,2021,5,62499,155800,,Petrol,,C200,Kuala Lumpur - Taman Tun Dr Ismail,dealer,2026-07-03,2026-07-03T17:47:31.912643
+mudah,https://www.mudah.my/2018-mercedes-benz-c200-2-0-1y-warranty-f-spec-115062664.htm,C_CLASS,2018,8,62499,71888,,Petrol,,C200,Selangor - Kajang,dealer,2026-07-03,2026-07-03T17:47:31.911644
+mudah,https://www.mudah.my/2018-mercedes-benz-c200-2-0-a-like-new-car-115062628.htm,C_CLASS,2018,8,72499,75900,,Petrol,,C200,Penang - Others,dealer,2026-07-03,2026-07-03T17:47:31.910647
+mudah,https://www.mudah.my/2023-mercedes-benz-c200-1-5-avantgarde-my22-w206-115054659.htm,C_CLASS,2023,3,27499,188800,,Petrol,,C200,Penang - Bukit Mertajam,dealer,2026-07-03,2026-07-03T17:47:31.908636
+mudah,https://www.mudah.my/fully-spec-mercedes-benz-c200-1-5t-amg-p-roof-hud-115016933.htm,C_CLASS,2023,3,32499,228000,,Petrol,,C200,Kuala Lumpur - Setapak,dealer,2026-07-03,2026-07-03T17:47:31.907643
+mudah,https://www.mudah.my/mercedes-benz-c200-2-0-avantgarde-7speed-pushstart-115000343.htm,C_CLASS,2016,10,134999,59888,,Petrol,,C200,Kuala Lumpur - Sungai Besi,dealer,2026-07-03,2026-07-03T17:47:31.906648
+mudah,https://www.mudah.my/14-21-mercedes-benz-c200-2-0cc-114990273.htm,C_CLASS,2014,12,97499,57800,,Petrol,,C200,Selangor - Bandar Kinrara,dealer,2026-07-03,2026-07-03T17:47:31.904641
+mudah,https://www.mudah.my/2016-mercedes-benz-c200-avantgarde-ckd-2-0-w205-114893440.htm,C_CLASS,2016,10,124999,59800,,Petrol,,C200,Kuala Lumpur - Sungai Besi,dealer,2026-07-02,2026-07-03T17:47:31.903641
+mudah,https://www.mudah.my/2023-mercedes-benz-c200-1-5-avantgarde-sport-unreg-114888888.htm,C_CLASS,2023,3,32499,228000,,Petrol,,C200,Kuala Lumpur - Setapak,dealer,2026-07-03,2026-07-03T17:47:31.901632
+mudah,https://www.mudah.my/2016-mercedes-c200-avantgarde-2-0-a-untung-sikit-114850852.htm,C_CLASS,2016,10,97499,58900,,Petrol,,C200,Penang - Others,dealer,2026-07-02,2026-07-03T17:47:31.900610
+mudah,https://www.mudah.my/2016-mercedes-benz-c200-avantgarde-cbu-2-0-a-114799291.htm,C_CLASS,2016,10,92499,59888,,Petrol,,C200,Selangor - Seri Kembangan,dealer,2026-07-03,2026-07-03T17:47:31.898102
+mudah,https://www.mudah.my/2019-mercedes-benz-c200-1-5-a-new-model-no-smoking-114795997.htm,C_CLASS,2019,7,77499,78900,,Petrol,,C200,Penang - Others,dealer,2026-07-02,2026-07-03T17:47:31.897097
+mudah,https://www.mudah.my/mercedes-benz-c200-1-8-cgi-blueefcy-leatherseat-114794531.htm,C_CLASS,2011,15,124999,28888,,Petrol,,C200,Kuala Lumpur - Sungai Besi,dealer,2026-07-03,2026-07-03T17:47:31.894117
+mudah,https://www.mudah.my/2017-mercedes-benz-c200-2-0-avantgarde-ckd-a-114731384.htm,C_CLASS,2017,9,124999,69800,,Petrol,,C200,Kuala Lumpur - Ampang Hilir,dealer,2026-07-03,2026-07-03T17:47:31.892110
+mudah,https://www.mudah.my/2018-mercedes-benz-c200-1-5-ori-mileage-55k-114685120.htm,C_CLASS,2018,8,47499,99800,,Petrol,,C200,Kuala Lumpur - Sungai Besi,dealer,2026-07-03,2026-07-03T17:47:31.891101
+mudah,https://www.mudah.my/c-c-service-2022-mercedes-benz-c200-1-5-av-w206-114638829.htm,C_CLASS,2022,4,52499,155999,,Petrol,,C200,Selangor - Puchong,dealer,2026-07-03,2026-07-03T17:47:31.889100
+mudah,https://www.mudah.my/only-54k-km-mercedes-benz-c200-1-5-w206-2022-114637972.htm,C_CLASS,2022,4,52499,155999,,Petrol,,C200,Selangor - Puchong,dealer,2026-07-03,2026-07-03T17:47:31.888100
+mudah,https://www.mudah.my/2022-mercedes-benz-c200-1-5-amg-line-hud-jpn-unreg-114476158.htm,C_CLASS,2022,4,62499,189000,,Petrol,,C200,Selangor - Cyberjaya,dealer,2026-07-03,2026-07-03T17:47:31.886098
+mudah,https://www.mudah.my/2022-mercedes-benz-c200-1-5-avantgarde-amg-line-114472974.htm,C_CLASS,2022,4,2499,203000,,Petrol,,C200,Kuala Lumpur - Titiwangsa,dealer,2026-07-03,2026-07-03T17:47:31.885099
+mudah,https://www.mudah.my/2016-mercedes-benz-c200-avantgarde-2-0-a-f-loan-114382411.htm,C_CLASS,2016,10,104999,60800,,Petrol,,C200,Selangor - Kajang,dealer,2026-07-03,2026-07-03T17:47:31.883089
+mudah,https://www.mudah.my/2019-mercedes-benz-c200-1-5-amg-a-full-loan-114380377.htm,C_CLASS,2019,7,82499,87800,,Petrol,,C200,Selangor - Kajang,dealer,2026-07-03,2026-07-03T17:47:31.881120
+mudah,https://www.mudah.my/mercedes-benz-c200-1-5-facelift-low-mil-one-owner-114299582.htm,C_CLASS,2018,8,67499,84800,,Petrol,,C200,Selangor - Seri Kembangan,dealer,2026-07-03,2026-07-03T17:47:31.879093
+mudah,https://www.mudah.my/otr-all-in-2020-mercedes-benz-c200-w205-facelift-114102698.htm,C_CLASS,2019,7,72499,89630,,Petrol,,C200,Selangor - Puchong,dealer,2026-07-03,2026-07-03T17:47:31.878119
+mudah,https://www.mudah.my/1996-2001-mercedes-benz-c200-a-113455090.htm,C_CLASS,1996,30,224999,6999,,Petrol,,C200,Selangor - Sepang,dealer,2026-07-03,2026-07-03T17:47:31.877119
+mudah,https://www.mudah.my/2016-mercedes-benz-c200-convert-c63-2-0-3-yr-wrty-113085626.htm,C_CLASS,2016,10,87499,63800,,Petrol,,C200,Kuala Lumpur - Salak Selatan,dealer,2026-07-03,2026-07-03T17:47:31.874117
+mudah,https://www.mudah.my/2016-mercedes-benz-c200-avantgarde-2-0-a-112896938.htm,C_CLASS,2016,10,87499,66800,,Petrol,,C200,Selangor - Bangi,dealer,2026-07-02,2026-07-03T17:47:31.873107
+mudah,https://www.mudah.my/2020-mercedes-benz-c200-1-5-4matic-laureus-114758332.htm,C_CLASS,2020,6,37499,149000,Automatic,Petrol,,C200,Selangor - Puncak Alam,dealer,2026-07-02,2026-07-03T10:27:26.638199

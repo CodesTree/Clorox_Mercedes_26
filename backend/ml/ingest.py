@@ -11,8 +11,9 @@ from typing import TypedDict
 
 from sqlalchemy.orm import Session
 
-from app.db import get_engine, get_session
-from app.orm import Base, TrainingData
+from app.config import get_settings
+from app.db import SessionLocal, init_db
+from app.orm import TrainingData
 
 
 # Import canonical model mapping and numeric-only list.
@@ -200,10 +201,15 @@ def ingest_to_db(
     session.commit()
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CSV = REPO_ROOT / "data" / "sample_odx" / "merc.csv"
+CURRENT_YEAR = 2026
+
+
 def main(
-    csv_path: Path | str = "data/sample_odx/merc.csv",
-    fx_gbp_to_rm: float = 5.90,
-    current_year: int | None = None,
+    csv_path: Path | str | None = None,
+    fx_gbp_to_rm: float | None = None,
+    current_year: int = CURRENT_YEAR,
 ) -> IngestSummary:
     """Main entry point for ingest pipeline.
 
@@ -220,8 +226,10 @@ def main(
     Raises:
         FileNotFoundError: If merc.csv not found.
     """
-    if current_year is None:
-        current_year = datetime.utcnow().year
+    settings = get_settings()
+    csv_path = Path(csv_path) if csv_path else DEFAULT_CSV
+    if fx_gbp_to_rm is None:
+        fx_gbp_to_rm = settings.fx_gbp_to_rm
 
     print(f"[ingest] Loading merc.csv from {csv_path}...")
     raw_rows = load_merc_csv(csv_path)
@@ -231,7 +239,8 @@ def main(
     cleaned_rows, summary = clean_and_normalize(raw_rows, fx_gbp_to_rm, current_year)
 
     print("[ingest] Populating training_data (truncate + reload)...")
-    session = get_session()
+    init_db()
+    session = SessionLocal()
     try:
         ingest_to_db(cleaned_rows, session)
     finally:
