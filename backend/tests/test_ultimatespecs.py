@@ -4,7 +4,7 @@ import csv
 import re
 from pathlib import Path
 
-from scraper.ultimatespecs import (
+from backend.scraper.big_scraper.ultimatespecs import (
     BRAND_MODELS_URL,
     FULL_CSV_COLUMNS,
     UltimateSpecsExtractor,
