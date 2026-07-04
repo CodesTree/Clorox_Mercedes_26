@@ -17,7 +17,7 @@ from typing import Any
 
 from app.schemas import PredictOut
 
-ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "ml" / "artifacts"
+ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "ml" / "model"
 MODEL_PATH = ARTIFACT_DIR / "price_model.joblib"
 META_PATH = ARTIFACT_DIR / "price_model_meta.json"
 
