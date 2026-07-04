@@ -222,6 +222,7 @@ __marimo__/
 data/*.db
 backend/data/
 backend/scraper/cache/
+backend/data/*.db
 backend/ml/artifacts/
 secrets/
 backend/.venv/
