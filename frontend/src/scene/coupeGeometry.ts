@@ -1,4 +1,4 @@
-import { BufferGeometry, Float32BufferAttribute } from "three";
+import { BufferGeometry, ExtrudeGeometry, Float32BufferAttribute, Shape } from "three";
 
 export const COUPE_BODY_LENGTH = 5.82;
 export const COUPE_BODY_HEIGHT = 0.94;
@@ -62,22 +62,41 @@ function createSectionedGeometry(sections: readonly Section[], segments = 32) {
 }
 
 export function createCoupeBodyGeometry() {
-  return createSectionedGeometry(
-    [
-      { x: -2.94, top: 0.12, bottom: -0.32, halfWidth: 0.46 },
-      { x: -2.62, top: 0.3, bottom: -0.46, halfWidth: 0.82 },
-      { x: -2.08, top: 0.36, bottom: -0.55, halfWidth: 1.04 },
-      { x: -1.42, top: 0.34, bottom: -0.57, halfWidth: 1.1 },
-      { x: -0.7, top: 0.3, bottom: -0.57, halfWidth: 1.12 },
-      { x: 0.02, top: 0.27, bottom: -0.56, halfWidth: 1.11 },
-      { x: 0.78, top: 0.24, bottom: -0.55, halfWidth: 1.07 },
-      { x: 1.5, top: 0.28, bottom: -0.52, halfWidth: 0.96 },
-      { x: 2.16, top: 0.18, bottom: -0.45, halfWidth: 0.7 },
-      { x: 2.64, top: 0.02, bottom: -0.36, halfWidth: 0.38 },
-      { x: 2.92, top: -0.08, bottom: -0.28, halfWidth: 0.12 },
-    ],
-    48,
-  );
+  const profile = new Shape();
+  profile.moveTo(2.38, 0.24);
+  profile.lineTo(2.46, 0.42);
+  profile.quadraticCurveTo(2.46, 0.58, 2.2, 0.64);
+  profile.lineTo(1.25, 0.78);
+  profile.quadraticCurveTo(0.7, 0.84, 0.42, 1.06);
+  profile.quadraticCurveTo(0.1, 1.2, -0.3, 1.2);
+  profile.quadraticCurveTo(-1.2, 1.14, -1.85, 0.84);
+  profile.quadraticCurveTo(-2.35, 0.74, -2.42, 0.56);
+  profile.lineTo(-2.36, 0.26);
+  profile.lineTo(-1.9, 0.2);
+  profile.lineTo(1.9, 0.2);
+  profile.closePath();
+
+  const geometry = new ExtrudeGeometry(profile, {
+    depth: 1.5,
+    bevelEnabled: true,
+    bevelThickness: 0.14,
+    bevelSize: 0.12,
+    bevelSegments: 4,
+    steps: 1,
+    curveSegments: 12,
+  });
+
+  geometry.translate(0, 0, -0.75);
+  const position = geometry.attributes.position;
+  for (let index = 0; index < position.count; index += 1) {
+    const y = position.getY(index);
+    if (y > 0.8) {
+      const taper = 1 - (y - 0.8) * 0.55;
+      position.setZ(index, position.getZ(index) * taper);
+    }
+  }
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 export function createCoupeCabinGeometry() {
