@@ -14,9 +14,9 @@ def predictor(tmp_path_factory):
 
 def _profile(**over):
     base = {
-        "model": "C Class", "year": 2018, "age": 8, "mileage": 60_000,
+        "model_class": "C Class", "year": 2018, "age": 8, "mileage": 60_000,
         "transmission": "Automatic", "fuel_type": "Petrol", "engine_size": 2.0,
-        "mpg": 45.0, "tax": 150.0,
+        "source_market": "uk",
     }
     base.update(over)
     return base
@@ -38,5 +38,5 @@ def test_depreciation_is_monotonically_non_increasing(predictor):
 
 
 def test_unknown_category_does_not_crash(predictor):
-    out = predictor.predict(_profile(model="ZZ Unknown", fuel_type="Electric"))
+    out = predictor.predict(_profile(model_class="ZZ Unknown", fuel_type="Electric"))
     assert out["value_rm"] > 0

@@ -13,7 +13,8 @@ import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import Ridge
 from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -23,12 +24,18 @@ from ml import ingest, metrics
 
 ARTIFACTS_DIR = Path(__file__).resolve().parents[0] / "artifacts"
 
-CATEGORICAL = ["model", "transmission", "fuel_type"]
-NUMERIC = ["age", "mileage", "engine_size", "mpg", "tax", "battery_soh", "trans_adapt_offset"]
+CATEGORICAL = ["model_class", "transmission", "fuel_type", "source_market",
+               "engine_config", "aspiration", "gear_type", "front_brake", "rear_brake"]
+NUMERIC = ["age", "mileage", "engine_size", "battery_soh", "trans_adapt_offset",
+           "n_cylinders", "n_gears", "top_speed_kmh", "torque_nm", "accel_0_100_s", "boot_l"]
 FEATURES = CATEGORICAL + NUMERIC
 TARGET = "price_rm"
-GROUP = "model"
+GROUP = "model_class"
 RANDOM_STATE = 42
+# Ridge (regularised) is the linear baseline: plain LinearRegression is numerically
+# unstable under GroupKFold, where whole model_class groups are held out and the
+# scaled one-hot dummies extrapolate wildly. Ridge bounds the coefficients.
+RIDGE_ALPHA = 10.0
 
 # Prediction-interval band (spec: ~92% via tree spread); Gate 2 validates coverage.
 INTERVAL_LOW_PCT = 4.0
@@ -36,10 +43,13 @@ INTERVAL_HIGH_PCT = 96.0
 
 
 def build_preprocessor() -> ColumnTransformer:
+    # Enriched spec numerics can be null (a matched spec row missing that field), so
+    # median-impute before scaling. Categoricals are pre-filled ("Unknown") in ingest.
+    num_pipe = Pipeline([("impute", SimpleImputer(strategy="median")), ("scale", StandardScaler())])
     return ColumnTransformer(
         transformers=[
             ("cat", OneHotEncoder(handle_unknown="ignore", drop="first"), CATEGORICAL),
-            ("num", StandardScaler(), NUMERIC),
+            ("num", num_pipe, NUMERIC),
         ]
     )
 
@@ -78,7 +88,7 @@ def evaluate(df: pd.DataFrame, n_splits: int = 5, n_estimators: int = 300) -> di
     """Per-fold + aggregate MAE/MAPE/RMSE/R² for RF and LR under GroupKFold."""
     estimators = {
         "random_forest": lambda: build_rf(n_estimators=n_estimators),
-        "linear_regression": lambda: LinearRegression(),
+        "ridge": lambda: Ridge(alpha=RIDGE_ALPHA),
     }
     report: dict = {}
     folds = list(iter_group_folds(df, n_splits=n_splits))
@@ -146,11 +156,18 @@ def main(
         "group": GROUP,
         "rf_params": production.named_steps["model"].get_params(),
         "mape_floor_rm": metrics.MAPE_FLOOR_RM,
-        "fx_gbp_to_rm": settings.fx_gbp_to_rm,
+        "fx_rates": {
+            "gbp_to_rm": settings.fx_gbp_to_rm,
+            "eur_to_rm": settings.fx_eur_to_rm,
+            "usd_to_rm": settings.fx_usd_to_rm,
+        },
+        "source_markets": (df["source_market"].value_counts().to_dict()
+                           if "source_market" in df else {}),
         "n_rows": int(len(df)),
         "trained_at": datetime.now(timezone.utc).isoformat(),
-        "notes": "Prices are UK levels converted to RM via FX_GBP_TO_RM. "
-                 "battery_soh and trans_adapt_offset are simulated OBD-II features.",
+        "notes": "Pooled UK/German/US Mercedes listings FX-converted to RM (NOT Malaysian "
+                 "prices) with a source_market feature; battery_soh and trans_adapt_offset "
+                 "are simulated OBD-II features; enriched specs joined from cars-spec-dataset.",
     }
     (artifacts_dir / "metrics.json").write_text(json.dumps(meta, indent=2, default=str))
     return meta
@@ -159,7 +176,7 @@ def main(
 if __name__ == "__main__":
     result = main()
     rf = result["models"]["random_forest"]["aggregate"]
-    lr = result["models"]["linear_regression"]["aggregate"]
-    print(f"RF  MAE={rf['mae']['mean']:.0f}  MAPE={rf['mape']['mean']:.2f}%  R2={rf['r2']['mean']:.3f}")
-    print(f"LR  MAE={lr['mae']['mean']:.0f}  MAPE={lr['mape']['mean']:.2f}%  R2={lr['r2']['mean']:.3f}")
+    ridge = result["models"]["ridge"]["aggregate"]
+    print(f"RF     MAE={rf['mae']['mean']:.0f}  MAPE={rf['mape']['mean']:.2f}%  R2={rf['r2']['mean']:.3f}")
+    print(f"Ridge  MAE={ridge['mae']['mean']:.0f}  MAPE={ridge['mape']['mean']:.2f}%  R2={ridge['r2']['mean']:.3f}")
     print(f"interval empirical coverage: {result['interval']['empirical_coverage']:.3f}")

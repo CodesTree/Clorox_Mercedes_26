@@ -3,8 +3,12 @@
 predict(profile) -> {value_rm, low_rm, high_rm, confidence}
 depreciation(profile, years) -> [{year, value_rm, retained_pct}, ...]
 
-The two simulated OBD-II features are re-derived (noise-free) from the profile so
-inference is stable; the depreciation curve recomputes battery_soh as age advances.
+A prediction profile carries the harmonised core fields (model_class, year, age,
+mileage, transmission, fuel_type, optional engine_size, optional source_market).
+It is enriched with cars-spec vehicle specs the SAME way training rows are, then
+the two simulated OBD-II features are re-derived noise-free so inference is stable.
+`source_market` defaults to "uk" (predictions read as UK-price-level in RM unless a
+market is supplied), consistent with the pooled model's honest FX caveat.
 """
 from __future__ import annotations
 
@@ -15,21 +19,47 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from ml import ingest
 from ml.features import engineer_profile
 from ml.train import FEATURES, INTERVAL_HIGH_PCT, INTERVAL_LOW_PCT
 
 DEFAULT_MODEL_PATH = Path(__file__).resolve().parents[0] / "artifacts" / "model.joblib"
 CONFIDENCE = (INTERVAL_HIGH_PCT - INTERVAL_LOW_PCT) / 100.0
+DEFAULT_MARKET = "uk"
 
 
 class Predictor:
-    def __init__(self, model_path: Path = DEFAULT_MODEL_PATH):
+    def __init__(self, model_path: Path = DEFAULT_MODEL_PATH, specs: pd.DataFrame | None = None):
         self.pipe = joblib.load(model_path)
         self.prep = self.pipe.named_steps["prep"]
         self.rf = self.pipe.named_steps["model"]
+        self.specs = ingest.clean_spec() if specs is None else specs
 
     def _row(self, profile: dict) -> pd.DataFrame:
-        return pd.DataFrame([engineer_profile(profile)])[FEATURES]
+        """Harmonise -> enrich with specs -> add noise-free OBD-II features."""
+        model_class = ingest.canon_class(profile.get("model_class") or profile.get("model")) or "Unknown"
+        engine_size = profile.get("engine_size", np.nan)
+        one = pd.DataFrame([{
+            "model_class": model_class,
+            "year": profile.get("year"),
+            "age": profile["age"],
+            "mileage": profile["mileage"],
+            "transmission": profile["transmission"],
+            "fuel_type": profile["fuel_type"],
+            "engine_size": engine_size if engine_size is not None else np.nan,
+            "engine_hint": engine_size if engine_size is not None else np.nan,
+            "source_market": profile.get("source_market", DEFAULT_MARKET),
+        }])
+        enriched = ingest.enrich(one, self.specs)
+        eng = engineer_profile({
+            "fuel_type": profile["fuel_type"],
+            "transmission": profile["transmission"],
+            "age": profile["age"],
+            "mileage": profile["mileage"],
+        })
+        enriched["battery_soh"] = eng["battery_soh"]
+        enriched["trans_adapt_offset"] = eng["trans_adapt_offset"]
+        return enriched[FEATURES]
 
     def _per_tree(self, row: pd.DataFrame) -> np.ndarray:
         Xt = self.prep.transform(row)

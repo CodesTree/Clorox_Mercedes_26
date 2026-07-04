@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/assetiq.db"
     fx_gbp_to_rm: float = 5.90
+    fx_eur_to_rm: float = 5.05
+    fx_usd_to_rm: float = 4.70
     cors_origins: str = "http://localhost:5173"
     scraper_user_agent: str = "AssetIQResearchBot/0.1 (+contact)"
     scraper_rate_limit_seconds: float = 4.0
