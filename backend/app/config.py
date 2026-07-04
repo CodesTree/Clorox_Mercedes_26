@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     google_calendar_credentials_json: str = "./secrets/google_sa.json"
     google_calendar_id: str = "primary"
+    google_calendar_timezone: str = "Asia/Kuala_Lumpur"
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -5,6 +5,9 @@ sqlalchemy==2.0.38
 pydantic==2.10.6
 pydantic-settings==2.7.1
 odxtools==10.6.1    # pinned from range install
+google-api-python-client==2.159.0
+google-auth==2.37.0
+tzdata==2025.1
 
 # Dev / test
 pytest==8.3.4
