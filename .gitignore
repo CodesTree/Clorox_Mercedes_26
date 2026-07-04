@@ -78,7 +78,7 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Data for training ML model
+# Datasets for ML model
 data/
 
 # IPython
@@ -231,3 +231,4 @@ secrets/
 backend/.venv/
 node_modules/
 frontend/dist/
+data/merc_engineered.csv

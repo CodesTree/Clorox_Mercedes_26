@@ -28,7 +28,7 @@ export function ValueHeader({ profile, prediction, predictionUnavailable, market
         )}
         {delta !== null && delta !== undefined ? (
           <span className="market-delta">
-            {delta >= 0 ? "up " : "down "}
+            {delta >= 0 ? "▲ " : "▼ "}
             {Math.abs(delta * 100).toFixed(1)}% vs market
           </span>
         ) : null}

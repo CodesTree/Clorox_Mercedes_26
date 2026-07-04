@@ -22,6 +22,9 @@ interface BookingModalProps {
 }
 
 const BOOKING_PURPOSE = "Certified inspection";
+const WORKSHOP_START_TIME = "09:00";
+const WORKSHOP_END_TIME = "18:00";
+const BOOKING_STEP_SECONDS = 600;
 
 export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalProps) {
   const [name, setName] = useState("");
@@ -101,7 +104,15 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
           </label>
           <label>
             Time
-            <input type="time" value={time} onChange={(event) => setTime(event.target.value)} required />
+            <input
+              type="time"
+              value={time}
+              min={WORKSHOP_START_TIME}
+              max={WORKSHOP_END_TIME}
+              step={BOOKING_STEP_SECONDS}
+              onChange={(event) => setTime(event.target.value)}
+              required
+            />
           </label>
           <button className="primary-button" type="submit">
             Submit booking

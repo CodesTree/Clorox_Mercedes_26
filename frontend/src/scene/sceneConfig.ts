@@ -1,10 +1,10 @@
 export const COUPE_CAMERA_MODE = "orthographic";
-export const COUPE_CAMERA_POSITION = [0, 2.62, 10] as const;
-export const COUPE_SAFE_FRAME_WIDTH = 7.74;
-export const COUPE_SAFE_FRAME_HEIGHT = 4.48;
+export const COUPE_CAMERA_POSITION = [0, 1.4, 7.4] as const;
+export const COUPE_SAFE_FRAME_WIDTH = 8.4;
+export const COUPE_SAFE_FRAME_HEIGHT = 4.7;
 export const COUPE_MIN_ZOOM_RATIO = 0.82;
-export const COUPE_MAX_ZOOM_RATIO = 1.22;
-export const COUPE_ORBIT_INNER_RADIUS = 3.02;
-export const COUPE_ORBIT_OUTER_RADIUS = 3.16;
+export const COUPE_MAX_ZOOM_RATIO = 1.76;
+export const COUPE_ORBIT_INNER_RADIUS = 3.45;
+export const COUPE_ORBIT_OUTER_RADIUS = 3.6;
 export const COUPE_ROTATION_BASE_Y = 0;
 export const COUPE_ROTATION_SWAY_Y = 0.08;
