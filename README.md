@@ -15,12 +15,14 @@ Design docs: `docs/superpowers/specs/` (start with the overview).
     cd backend
     python -m venv .venv
     .venv/Scripts/python -m pip install -r requirements.txt   # Windows path; use .venv/bin on Unix
-    .venv/Scripts/python -m playwright install chromium        # browser binary for live scraper runs
     cd ..
     backend/.venv/Scripts/python -m uvicorn app.main:app --app-dir backend --reload --port 8000
 
 Run from the **repo root** so `./data/` and `.env` resolve correctly.
 API docs: http://localhost:8000/docs . Contract: http://localhost:8000/openapi.json
+
+Live scraper browser mode uses SeleniumBase UC mode with Chrome. `backend/requirements.txt`
+includes SeleniumBase; the host also needs a compatible Chrome/Chromium browser available.
 
 ## Frontend (React + Three.js)
 

@@ -98,6 +98,29 @@ def test_pipeline_site_selector_runs_only_requested_site():
     assert summary["carlist_stored"] > 0
 
 
+def test_pipeline_reports_fetcher_last_error_for_empty_response():
+    class EmptyCarlistFetcher:
+        last_error = "HTTP 403 anti-bot challenge page"
+
+        def fetch(self, url: str) -> str:
+            assert "carlist.my" in url
+            return ""
+
+    init_db()
+    session = SessionLocal()
+    try:
+        summary = run_pipeline(
+            session,
+            config=PipelineConfig(use_fixtures=False, use_network=True, site="carlist"),
+            fetcher=EmptyCarlistFetcher(),
+        )
+    finally:
+        session.close()
+
+    assert summary["carlist_status"] == "fetch_failed"
+    assert summary["carlist_error"] == "HTTP 403 anti-bot challenge page"
+
+
 def test_cli_parse_requires_explicit_mode():
     with pytest.raises(SystemExit):
         pipeline.parse_args(["--site", "all"])

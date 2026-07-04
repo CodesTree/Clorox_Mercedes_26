@@ -126,7 +126,8 @@ def _run_site(
         return _empty_site_result("fetch_failed", message)
 
     if not html:
-        return _empty_site_result("fetch_failed", "empty response")
+        error = getattr(fetcher, "last_error", "") if fetcher is not None else ""
+        return _empty_site_result("fetch_failed", error or "empty response")
 
     try:
         rows, stats = extract(html)

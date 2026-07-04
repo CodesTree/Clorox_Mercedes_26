@@ -54,6 +54,40 @@ class MarketListing(Base):
     scraped_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class VehicleSpec(Base):
+    """Approved technical vehicle specs; never merged into training_data."""
+
+    __tablename__ = "vehicle_specs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String, default="ultimatespecs")
+    source_url: Mapped[str] = mapped_column(String, unique=True, index=True)
+    make: Mapped[str]
+    model: Mapped[str] = mapped_column(String, index=True)
+    variant: Mapped[str | None]
+    generation: Mapped[str | None]
+    year_start: Mapped[int | None]
+    year_end: Mapped[int | None]
+    specific_model: Mapped[str]
+    engine_type: Mapped[str | None]
+    engine_cc: Mapped[int | None]
+    engine_aspiration: Mapped[str | None]
+    transmission: Mapped[str | None]
+    number_of_gears: Mapped[int | None]
+    top_speed_kmh: Mapped[int | None]
+    front_brakes: Mapped[str | None]
+    rear_brakes: Mapped[str | None]
+    front_suspension: Mapped[str | None]
+    rear_suspension: Mapped[str | None]
+    boot_space_litres: Mapped[int | None]
+    seat_capacity: Mapped[int | None]
+    number_of_doors: Mapped[int | None]
+    torque_nm: Mapped[int | None]
+    zero_to_100_kmh_s: Mapped[float | None]
+    fuel_type: Mapped[str | None]
+    scraped_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class VehicleProfile(Base):
     """The subject car being valued. `model` must be a canonical training class (enforced in P03)."""
 

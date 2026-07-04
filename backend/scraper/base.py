@@ -5,14 +5,18 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
 
-from playwright.sync_api import sync_playwright
+# SeleniumBase for undetected Chrome (handles Cloudflare JS challenges)
+from seleniumbase import Driver
 
 logger = logging.getLogger(__name__)
 
 _UA_LINE_RE = re.compile(r"(?i)^(user-agent:\s*)(\S+)")
+_WHITESPACE_RE = re.compile(r"\s+")
 
 def _strip_ua_versions(content: str) -> str:
     lines = []
@@ -52,6 +56,7 @@ class PoliteFetcher:
         self._sleep = sleep_fn
         self.config.cache_dir.mkdir(parents=True, exist_ok=True)
         self.last_request_time = 0.0
+        self.last_error = ""
         self._robots: dict[str, RobotFileParser] = {}
         self._crawl_delays: dict[str, float] = {}
 
@@ -66,6 +71,7 @@ class PoliteFetcher:
 
         self._apply_rate_limit(url)
 
+        self.last_error = ""
         html = self._fetch_with_backoff(url)
         self.last_request_time = self._time()
 
@@ -87,16 +93,34 @@ class PoliteFetcher:
         if key in self._robots:
             return self._robots[key]
 
-        robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-        parser = RobotFileParser()
-        parser.set_url(robots_url)
-        try:
-            parser.read()
-        except Exception:
-            logger.debug("Could not read robots.txt for %s", key)
-            parser = RobotFileParser()
+        parser = self._read_robots(parsed.scheme, parsed.netloc)
         self._robots[key] = parser
         self._record_crawl_delay(key, parser)
+        return parser
+
+    def _read_robots(self, scheme: str, netloc: str) -> RobotFileParser:
+        robots_url = f"{scheme}://{netloc}/robots.txt"
+        parser = RobotFileParser()
+        parser.set_url(robots_url)
+        request = Request(robots_url, headers={"User-Agent": self.config.user_agent})
+        try:
+            with urlopen(request, timeout=self.config.request_timeout_seconds) as response:
+                content = response.read().decode("utf-8", errors="replace")
+        except HTTPError as exc:
+            if exc.code in {401, 403}:
+                parser.disallow_all = True
+            elif 400 <= exc.code < 500:
+                parser.allow_all = True
+            else:
+                parser.disallow_all = True
+            logger.debug("robots.txt fetch for %s returned HTTP %s", netloc, exc.code)
+            return parser
+        except URLError as exc:
+            parser.disallow_all = True
+            logger.debug("Could not read robots.txt for %s: %s", netloc, exc)
+            return parser
+
+        parser.parse(_strip_ua_versions(content).splitlines())
         return parser
 
     def load_robots_txt(self, domain: str, content: str) -> None:
@@ -143,31 +167,55 @@ class PoliteFetcher:
                 self._sleep(delay)
                 delay *= 2
                 continue
-            last_error = html or f"HTTP {status}"
+            last_error = self._summarize_failed_response(html, status)
             break
+        self.last_error = last_error
         logger.error("Failed to fetch %s: %s", url, last_error)
         return ""
 
+    def _summarize_failed_response(self, html: str, status: int) -> str:
+        if not html:
+            return f"HTTP {status}"
+        lower = html.lower()
+        if "cloudflare" in lower and ("just a moment" in lower or "verification" in lower):
+            return f"HTTP {status} anti-bot challenge page"
+        text = re.sub(r"<[^>]+>", " ", html)
+        text = _WHITESPACE_RE.sub(" ", text).strip()
+        if len(text) > 200:
+            text = f"{text[:200]}..."
+        return f"HTTP {status}: {text}"
+
+    # ----------------------------------------------------------------------
+    # NEW: _fetch_once using SeleniumBase UC mode
+    # ----------------------------------------------------------------------
     def _fetch_once(self, url: str) -> tuple[str, int]:
-        """Network fetch via Playwright. Returns (html, pseudo-status)."""
+        """Fetch via SeleniumBase UC – handles Cloudflare JS challenges."""
+        driver = None
         try:
-            logger.info("Network fetch (Playwright): %s", url)
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=False)
-                context = browser.new_context(
-                    user_agent=self.config.user_agent,
-                    viewport={"width": 1920, "height": 1080},
-                )
-                page = context.new_page()
-                response = page.goto(url, wait_until="domcontentloaded")
-                page.wait_for_timeout(3000)
-                html = page.content()
-                browser.close()
-                status = response.status if response else 200
-                return html, status
+            logger.info("Network fetch (SeleniumBase UC): %s", url)
+            driver = Driver(
+                uc=True,                # undetected-chrome mode
+                headless=False,         # visible browser (most reliable)
+                headless2=False,        # keep False; use headless=True + headless2=True for stealth headless
+                browser="chrome",
+                agent=self.config.user_agent,
+                page_load_strategy="normal",
+            )
+            driver.get(url)
+            # Wait up to 30 seconds for the page to load (including Cloudflare challenges)
+            driver.implicitly_wait(30)
+            # Optional: wait for a specific element to confirm the page is ready
+            # driver.wait_for_element("body", timeout=30)
+            html = driver.page_source
+            status = 200
+            return html, status
         except Exception as exc:
-            logger.error("Playwright failed for %s: %s", url, exc)
-            return "", 500
+            logger.error("SeleniumBase fetch failed for %s: %s", url, exc)
+            return "", 500   # trigger retry
+        finally:
+            if driver:
+                driver.quit()
+    # ----------------------------------------------------------------------
 
     def _cache_path(self, url: str) -> Path:
         cache_filename = f"{hashlib.md5(url.encode()).hexdigest()}.html"
