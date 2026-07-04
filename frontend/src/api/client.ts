@@ -1,9 +1,100 @@
-// Dev traffic goes through the Vite proxy (/api -> http://localhost:8000).
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 export interface HealthOut {
   status: string;
   version: string;
+}
+
+export interface VehicleProfile {
+  id: number;
+  name: string;
+  model: string;
+  year: number;
+  mileage: number;
+  transmission: string;
+  fuel_type: string;
+  engine_size: number;
+  mpg: number | null;
+  tax: number | null;
+  service_history_count: number | null;
+  service_history_total: number | null;
+  service_history_max: number | null;
+  workshop: string | null;
+  glb_asset: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type VehicleProfileIn = Pick<
+  VehicleProfile,
+  | "model"
+  | "year"
+  | "mileage"
+  | "transmission"
+  | "fuel_type"
+  | "engine_size"
+  | "mpg"
+  | "tax"
+  | "service_history_count"
+  | "service_history_total"
+>;
+
+export interface PredictOut {
+  value_rm: number;
+  low_rm: number;
+  high_rm: number;
+  confidence: number;
+  currency: "RM";
+}
+
+export interface MarketListingOut {
+  source: "mudah" | "carlist";
+  listing_url: string;
+  model: string;
+  variant: string | null;
+  year: number;
+  price_rm: number;
+  mileage: number | null;
+  location: string | null;
+  posted_at: string | null;
+}
+
+export interface MarketCompsOut {
+  comps: MarketListingOut[];
+  median_rm: number | null;
+  delta_pct: number | null;
+  n: number;
+}
+
+export interface DepreciationPoint {
+  year: number;
+  value_rm: number;
+  retained_pct: number;
+}
+
+export interface DepreciationOut {
+  points: DepreciationPoint[];
+}
+
+export interface ObdSnapshotOut {
+  rpm: number;
+  coolant_c: number;
+  battery_v: number;
+  health: number;
+  odo_km: number;
+  simulated: true;
+  ts: string;
+}
+
+export interface FaultOut {
+  code: string;
+  description: string;
+  severity: string;
+  system: string;
+}
+
+export interface FaultsOut {
+  faults: FaultOut[];
 }
 
 export interface BookingIn {
@@ -42,8 +133,19 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(`${API_BASE}${path}`, {
+function makeUrl(path: string, params?: Record<string, string | number | boolean | null | undefined>) {
+  const base = API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
+  const url = new URL(`${base}${path}`, window.location.origin);
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (value !== undefined && value !== null) {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  return url.pathname + url.search;
+}
+
+async function request<T>(path: string, init?: RequestInit, params?: Record<string, string | number | boolean>) {
+  const resp = await fetch(makeUrl(path, params), {
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });
@@ -60,13 +162,52 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return resp.json() as Promise<T>;
 }
 
-export function getHealth(): Promise<HealthOut> {
+export function isModelUnavailable(error: unknown) {
+  return error instanceof ApiError && error.status === 503;
+}
+
+export function getHealth() {
   return request<HealthOut>("/health");
 }
 
-export function createBooking(booking: BookingIn): Promise<BookingOut> {
+export function getVehicleProfile(id = 1) {
+  return request<VehicleProfile>("/vehicle/profile", undefined, { id });
+}
+
+export function getObdSnapshot(profileId: number) {
+  return request<ObdSnapshotOut>("/obd/snapshot", undefined, { profile_id: profileId });
+}
+
+export function getFaults(profileId: number) {
+  return request<FaultsOut>("/odx/faults", undefined, { profile_id: profileId });
+}
+
+export function getMarketComps(model: string, year: number, limit = 12) {
+  return request<MarketCompsOut>("/market/comps", undefined, { model, year, limit });
+}
+
+export function predict(profile: VehicleProfileIn) {
+  return request<PredictOut>("/predict", {
+    method: "POST",
+    body: JSON.stringify(profile),
+  });
+}
+
+export function getDepreciation(profileId: number, years = 5) {
+  return request<DepreciationOut>("/depreciation", undefined, { profile_id: profileId, years });
+}
+
+export function createBooking(booking: BookingIn) {
   return request<BookingOut>("/booking", {
     method: "POST",
     body: JSON.stringify(booking),
+  });
+}
+
+export function makeObdStreamUrl(profileId: number, maxEvents = 100) {
+  return makeUrl("/obd/stream", {
+    profile_id: profileId,
+    max_events: maxEvents,
+    interval_seconds: 1,
   });
 }
