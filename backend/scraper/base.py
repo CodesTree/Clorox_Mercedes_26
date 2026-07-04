@@ -35,6 +35,16 @@ def looks_like_challenge(html: str) -> bool:
     return "cloudflare" in lower and ("just a moment" in lower or "verification" in lower)
 
 
+def looks_like_server_error(html: str) -> bool:
+    """True when the HTML is a hosting-provider error page (e.g. disk quota
+    exceeded) rather than real content. Distinct from ``looks_like_challenge``:
+    this is the target site's own infrastructure failing, not an anti-bot gate."""
+    if not html:
+        return False
+    lower = html.lower()
+    return "insufficient storage" in lower or "insufficient free space left in your storage allocation" in lower
+
+
 @dataclass
 class ScraperConfig:
     user_agent: str
@@ -185,6 +195,8 @@ class PoliteFetcher:
             return f"HTTP {status}"
         if looks_like_challenge(html):
             return f"HTTP {status} anti-bot challenge page"
+        if looks_like_server_error(html):
+            return f"HTTP {status} host storage/server error page"
         text = re.sub(r"<[^>]+>", " ", html)
         text = _WHITESPACE_RE.sub(" ", text).strip()
         if len(text) > 200:
@@ -241,11 +253,12 @@ class PoliteFetcher:
             driver = self._get_driver()
             driver.get(url)
             html = driver.page_source
-            if looks_like_challenge(html):
-                # Give the UC challenge auto-solve a moment, then re-read once.
+            if looks_like_challenge(html) or looks_like_server_error(html):
+                # Give the UC challenge auto-solve (or the host's transient
+                # error) a moment, then re-read once before giving up.
                 self._sleep(6)
                 html = driver.page_source
-                if looks_like_challenge(html):
+                if looks_like_challenge(html) or looks_like_server_error(html):
                     return html, 503  # retryable via backoff
             return html, 200
         except Exception as exc:

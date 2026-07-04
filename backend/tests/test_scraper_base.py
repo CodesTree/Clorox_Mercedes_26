@@ -215,3 +215,39 @@ def test_close_is_safe_without_driver_and_idempotent(tmp_path):
     fetcher.close()  # no driver created yet
     fetcher.close()  # idempotent
     assert fetcher._driver is None
+
+
+STORAGE_ERROR_HTML = (
+    "<html><body><h1>Insufficient Storage</h1>"
+    "<p>The method could not be performed on the resource because the server "
+    "is unable to store the representation needed to successfully complete "
+    "the request. There is insufficient free space left in your storage "
+    "allocation.</p></body></html>"
+)
+
+
+def test_looks_like_server_error_detects_storage_quota_page():
+    from scraper.base import looks_like_server_error
+
+    real_page = "<html><body><h1>Mercedes Benz A Class (W168) A140 Specs</h1></body></html>"
+
+    assert looks_like_server_error(STORAGE_ERROR_HTML) is True
+    assert looks_like_server_error(real_page) is False
+    assert looks_like_server_error("") is False
+
+
+def test_fetch_once_treats_server_error_page_as_retryable(tmp_path):
+    fetcher = _fetcher(tmp_path, FakeClock())
+
+    class FakeDriver:
+        page_source = STORAGE_ERROR_HTML
+
+        def get(self, url: str) -> None:
+            pass
+
+    fetcher._driver = FakeDriver()  # bypasses real seleniumbase driver creation
+
+    html, status = fetcher._fetch_once("https://www.example.com/car-specs/page.html")
+
+    assert status == 503
+    assert html == STORAGE_ERROR_HTML
