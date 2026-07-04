@@ -243,7 +243,12 @@ export default function App() {
         <div className="stage-border" />
         <header className="stage-topbar">
           <span className="wordmark">
-            <span className="wordmark-spark">*</span> AssetIQ
+            <span className="wordmark-spark" data-testid="wordmark-star" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M12 2.5l2.35 7.15 7.15 2.35-7.15 2.35L12 21.5l-2.35-7.15L2.5 12l7.15-2.35L12 2.5z" />
+              </svg>
+            </span>
+            AssetIQ
             <span className="wordmark-sub">for Mercedes-Benz</span>
           </span>
           <span className={`api-pill api-pill--${apiStatus}`} data-testid="api-status">

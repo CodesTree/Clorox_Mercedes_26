@@ -148,6 +148,7 @@ afterEach(() => {
 test("renders the Phase 04 cinematic dashboard layout with API-fed values", async () => {
   render(<App />);
 
+  expect(screen.getByTestId("wordmark-star")).toBeInTheDocument();
   expect(await screen.findByText(/738,000/)).toBeInTheDocument();
   expect(screen.getByLabelText("Live OBD-II rail")).toBeInTheDocument();
   expect(screen.getByText("853")).toBeInTheDocument();
@@ -196,6 +197,12 @@ test("booking modal suggests nearest Mercedes centre and submits the hidden insp
   expect(within(modal).queryByLabelText("Purpose")).not.toBeInTheDocument();
   expect(within(modal).getByText("Hap Seng Star KL")).toBeInTheDocument();
   expect(within(modal).getByText(/Current OBD location/i)).toBeInTheDocument();
+  const timeInput = within(modal).getByLabelText("Time");
+  expect(timeInput.tagName).toBe("INPUT");
+  expect(timeInput).toHaveAttribute("type", "time");
+  expect(timeInput).toHaveAttribute("min", "09:00");
+  expect(timeInput).toHaveAttribute("max", "18:00");
+  expect(timeInput).toHaveAttribute("step", "600");
 
   fireEvent.click(within(modal).getByRole("button", { name: /Change workshop/i }));
   expect(modal).toHaveClass("booking-modal--picker-open");
