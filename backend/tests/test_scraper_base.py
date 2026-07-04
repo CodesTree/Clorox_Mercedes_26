@@ -194,3 +194,24 @@ def test_failed_response_summary_collapses_cloudflare_challenge(tmp_path):
     )
 
     assert summary == "HTTP 403 anti-bot challenge page"
+
+
+def test_looks_like_challenge_detects_interstitial_only():
+    from scraper.base import looks_like_challenge
+
+    challenge = (
+        "<html><head><title>Just a moment...</title></head>"
+        "<body>Performance and Security by Cloudflare verification</body></html>"
+    )
+    real_page = "<html><body><h1>Mercedes Benz A Class (W168) A140 Specs</h1></body></html>"
+
+    assert looks_like_challenge(challenge) is True
+    assert looks_like_challenge(real_page) is False
+    assert looks_like_challenge("") is False
+
+
+def test_close_is_safe_without_driver_and_idempotent(tmp_path):
+    fetcher = _fetcher(tmp_path, FakeClock())
+    fetcher.close()  # no driver created yet
+    fetcher.close()  # idempotent
+    assert fetcher._driver is None

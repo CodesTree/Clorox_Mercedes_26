@@ -1,176 +1,313 @@
-"""UltimateSpecs technical-spec parser and ingester.
+"""UltimateSpecs full-brand technical-spec crawler.
 
-This module is deliberately separate from marketplace listings and training
-data. Fixture mode is the default test path; live mode only fetches approved
-model URLs with the shared polite fetcher.
+Full-brand crawl (``--crawl-all``): walks brand -> family -> generation model
+-> version detail across every Mercedes-Benz family on the site and appends
+each version's full spec row to ``data/external/mercedes_specs_ultimate.csv``.
+Resume-safe: already-scraped source_urls found in the CSV are skipped, and the
+fetcher's on-disk cache means re-parsing cached pages costs no network calls.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import unquote, urldefrag, urljoin, urlparse
 
 from bs4 import BeautifulSoup
-from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db import SessionLocal, init_db
-from app.orm import VehicleSpec
-from scraper.export_joined_specs import load_joined_specs_rows, write_joined_specs_csv
 from scraper.base import PoliteFetcher, ScraperConfig
 
 logger = logging.getLogger(__name__)
 
-FIXTURES_DIR = Path(__file__).parent / "fixtures"
 ULTIMATESPECS_BASE = "https://www.ultimatespecs.com"
 
-# Keep live scope intentionally narrow. --url can be used for one explicitly
-# approved detail page, or for this one approved W206 generation seed page.
-APPROVED_MODEL_URLS: dict[str, list[str]] = {"c200": []}
-APPROVED_GENERATION_URLS = {
-    "https://www.ultimatespecs.com/car-specs/Mercedes-Benz/M484/W204-Class-C",
-    "https://www.ultimatespecs.com/car-specs/Mercedes-Benz/M3552/C-Class-(W204-2011)-Sedan",
-    "https://www.ultimatespecs.com/car-specs/Mercedes-Benz/M7349/W205-Class-C",
-    "https://www.ultimatespecs.com/car-specs/Mercedes-Benz/M9956/Class-C-(W205-2019)",
-    "https://www.ultimatespecs.com/car-specs/Mercedes-Benz/M11849/Class-C-(W206)"
-}
-JOINED_EXPORT_PATH = Path("data/snapshots/market_specs_joined_export.csv")
+BRAND_MODELS_URL = f"{ULTIMATESPECS_BASE}/car-specs/Mercedes-Benz-models"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CRAWL_CSV = REPO_ROOT / "data" / "external" / "mercedes_specs_ultimate.csv"
 
 SpecStatus = Literal["ok", "blocked_by_robots", "fetch_failed", "extract_failed", "not_configured"]
 
 
 @dataclass
-class UltimateSpecsSummary:
+class CrawlSummary:
     status: SpecStatus
-    fetched: int = 0
-    stored: int = 0
+    families: int = 0
+    model_pages: int = 0
+    details_scraped: int = 0
+    details_skipped: int = 0
+    errors: list[str] = field(default_factory=list)
     error: str = ""
 
 
-SPEC_FIELD_ALIASES = {
+# --------------------------------------------------------------------------- #
+# Full-brand crawl schema (mercedes_specs_ultimate.csv)                       #
+# --------------------------------------------------------------------------- #
+FULL_CSV_COLUMNS = [
+    # identity / provenance
+    "model_family", "generation", "model_page_title", "version_name",
+    "year_start", "year_end",
+    # body & production details
+    "body", "num_doors",
+    # engine technical data (ICE; engine_type also holds the EV layout label)
+    "engine_type", "engine_code", "fuel_type", "fuel_system", "engine_alignment",
+    "displacement_cc", "num_valves", "aspiration", "compression_ratio",
+    "horsepower_hp", "torque_nm", "drive_wheels", "transmission",
+    # performance
+    "top_speed_kmh", "accel_0_100_s",
+    # fuel consumption & range (ICE)
+    "consumption_city_l100km", "consumption_openroad_l100km",
+    "consumption_combined_l100km", "range_km", "fuel_tank_l",
+    # EV powertrain
+    "total_electric_power_hp", "total_electric_torque_nm", "num_electric_engines",
+    "electric_engine_type", "front_axle_power_hp", "front_axle_torque_nm",
+    # EV battery / charging
+    "avg_energy_consumption", "battery_type", "battery_voltage",
+    "battery_capacity_kwh", "charging_dc", "charging_wallbox", "charging_ac",
+    "fast_charge_current",
+    # provenance tail
+    "source_url", "scraped_at",
+]
+
+FULL_SPEC_ALIASES = {
+    "generation": "generation",
+    "body": "body",
+    "doors": "num_doors",
+    "number of doors": "num_doors",
+    "num. of doors": "num_doors",
     "engine type": "engine_type",
     "engine type - number of cylinders": "engine_type",
-    "engine displacement": "engine_cc",
-    "engine size": "engine_cc",
-    "aspiration": "engine_aspiration",
-    "engine aspiration": "engine_aspiration",
-    "transmission": "transmission",
-    "gearbox": "transmission",
-    "transmission gearbox - number of speeds": "transmission",
-    "number of gears": "number_of_gears",
-    "top speed": "top_speed_kmh",
-    "front brakes": "front_brakes",
-    "front brakes - disc dimensions": "front_brakes",
-    "rear brakes": "rear_brakes",
-    "rear brakes - disc dimensions": "rear_brakes",
-    "front suspension": "front_suspension",
-    "rear suspension": "rear_suspension",
-    "trunk / boot capacity": "boot_space_litres",
-    "boot capacity": "boot_space_litres",
-    "seats": "seat_capacity",
-    "number of seats": "seat_capacity",
-    "num. of seats": "seat_capacity",
-    "doors": "number_of_doors",
-    "number of doors": "number_of_doors",
-    "num. of doors": "number_of_doors",
-    "torque": "torque_nm",
-    "maximum torque": "torque_nm",
-    "acceleration 0 to 100 km/h": "zero_to_100_kmh_s",
-    "acceleration 0 to 100 km/h (0 to 62 mph)": "zero_to_100_kmh_s",
-    "0 to 100 km/h": "zero_to_100_kmh_s",
+    "engine code": "engine_code",
     "fuel type": "fuel_type",
     "fuel": "fuel_type",
+    "fuel system": "fuel_system",
+    "engine alignment": "engine_alignment",
+    "engine displacement": "displacement_cc",
+    "engine size": "displacement_cc",
+    "number of valves": "num_valves",
+    "num. of valves": "num_valves",
+    "aspiration": "aspiration",
+    "engine aspiration": "aspiration",
+    "compression ratio": "compression_ratio",
+    "horsepower": "horsepower_hp",
+    "maximum torque": "torque_nm",
+    "torque": "torque_nm",
+    "drive wheels - traction - drivetrain": "drive_wheels",
+    "drive wheels": "drive_wheels",
+    "drive type": "drive_wheels",
+    "transmission gearbox - number of speeds": "transmission",
+    "transmission": "transmission",
+    "gearbox": "transmission",
+    "top speed": "top_speed_kmh",
+    "acceleration 0 to 100 km/h (0 to 62 mph)": "accel_0_100_s",
+    "acceleration 0 to 100 km/h": "accel_0_100_s",
+    "0 to 100 km/h": "accel_0_100_s",
+    "range": "range_km",
+    "fuel tank capacity": "fuel_tank_l",
+    "total electric power": "total_electric_power_hp",
+    "total maximum power": "total_electric_power_hp",
+    "total electric torque": "total_electric_torque_nm",
+    "total maximum torque": "total_electric_torque_nm",
+    "number of electric engines": "num_electric_engines",
+    "num. of electric engines": "num_electric_engines",
+    "electric engine type": "electric_engine_type",
+    "front axle electric engine power": "front_axle_power_hp",
+    "front axle electric engine torque": "front_axle_torque_nm",
+    "average energy consumption": "avg_energy_consumption",
+    "battery type": "battery_type",
+    "battery voltage": "battery_voltage",
+    "battery capacity": "battery_capacity_kwh",
+    "nominal capacity": "battery_capacity_kwh",
+    "fast charge current": "fast_charge_current",
 }
+
+# Fields parsed to numbers; everything else stays a cleaned string.
+_HP_INT_FIELDS = {"horsepower_hp", "total_electric_power_hp", "front_axle_power_hp"}
+_NM_INT_FIELDS = {"torque_nm", "total_electric_torque_nm", "front_axle_torque_nm"}
+_PLAIN_INT_FIELDS = {
+    "displacement_cc", "num_valves", "num_doors", "top_speed_kmh",
+    "range_km", "num_electric_engines",
+}
+_FLOAT_FIELDS = {
+    "compression_ratio", "accel_0_100_s", "consumption_city_l100km",
+    "consumption_openroad_l100km", "consumption_combined_l100km", "fuel_tank_l",
+    "battery_capacity_kwh", "avg_energy_consumption", "battery_voltage",
+}
+
+_FAMILY_HREF_RE = re.compile(r"/car-specs/Mercedes-Benz-models/Mercedes-Benz-[^/]+/?$")
+_MODEL_CARD_HREF_RE = re.compile(r"/car-specs/Mercedes-Benz/M\d+/[^/]+/?$")
+_DETAIL_HREF_RE = re.compile(r"/car-specs/Mercedes-Benz/\d+/[^/]+\.html$")
 
 
 class UltimateSpecsExtractor:
     source = "ultimatespecs"
 
-    def extract_detail(self, html: str, *, source_url: str) -> dict[str, Any] | None:
-        soup = BeautifulSoup(html, "html.parser")
-        title = self._clean_text((soup.find("h1") or soup.find("title")).get_text(" ", strip=True))
-        if not title or "mercedes" not in title.lower() or "c" not in title.lower():
-            return None
-
-        row: dict[str, Any] = {
-            "source": self.source,
-            "source_url": source_url,
-            "make": "Mercedes-Benz",
-            "model": "C_CLASS",
-            "variant": self._variant_from_title(title),
-            "generation": self._generation_from_title(title),
-            "year_start": None,
-            "year_end": None,
-            "specific_model": title,
-            "engine_type": None,
-            "engine_cc": None,
-            "engine_aspiration": None,
-            "transmission": None,
-            "number_of_gears": None,
-            "top_speed_kmh": None,
-            "front_brakes": None,
-            "rear_brakes": None,
-            "front_suspension": None,
-            "rear_suspension": None,
-            "boot_space_litres": None,
-            "seat_capacity": None,
-            "number_of_doors": None,
-            "torque_nm": None,
-            "zero_to_100_kmh_s": None,
-            "fuel_type": None,
-            "scraped_at": datetime.now(timezone.utc).replace(tzinfo=None),
-        }
-        page_text = soup.get_text("\n", strip=True)
-        self._apply_years(row, f"{title}\n{page_text}")
-
-        for label, value in self._spec_pairs(soup).items():
-            field = SPEC_FIELD_ALIASES.get(label)
-            if not field:
-                continue
-            row[field] = self._normalize_field(field, value)
-            if field == "transmission" and row["number_of_gears"] is None:
-                row["number_of_gears"] = self._first_int(value)
-
-        if not row["variant"]:
-            row["variant"] = self._variant_from_title(row["specific_model"])
-        return row
-
-    def extract_c200_detail_links(self, html: str, *, source_url: str) -> list[str]:
-        """Extract C200-related exact detail links from an approved generation page."""
+    # ------------------------------------------------------------------ #
+    # Full-brand crawl extractors (levels 1-3)                            #
+    # ------------------------------------------------------------------ #
+    def extract_family_links(self, html: str, *, source_url: str) -> list[str]:
+        """Level 1: model-family links on the Mercedes-Benz-models brand page."""
         soup = BeautifulSoup(html, "html.parser")
         links: list[str] = []
         seen: set[str] = set()
         for anchor in soup.find_all("a", href=True):
-            text = self._clean_text(anchor.get_text(" ", strip=True))
-            href = str(anchor["href"])
-            haystack = f"{text} {href}".lower()
-            if not re.search(r"\bc[\s-]?200\b", haystack):
+            absolute = _canonical_url(urljoin(source_url, str(anchor["href"])))
+            parsed = urlparse(absolute)
+            if parsed.netloc.lower() != "www.ultimatespecs.com":
                 continue
-            if re.search(
-                r"\bc[\s-]?200\s*d\b|[-/]200-d(?:\.|/|$)|\bcdi\b|\bbluetec\b|\bdiesel\b",
-                haystack,
-            ):
-                continue
-            absolute = _canonical_url(urljoin(source_url, href))
-            if not self._is_ultimatespecs_detail_url(absolute):
+            if not _FAMILY_HREF_RE.search(parsed.path):
                 continue
             if absolute not in seen:
                 seen.add(absolute)
                 links.append(absolute)
         return links
 
-    def _is_ultimatespecs_detail_url(self, url: str) -> bool:
-        parsed = urlparse(url)
-        return (
-            parsed.netloc.lower() == "www.ultimatespecs.com"
-            and parsed.path.startswith("/car-specs/Mercedes-Benz/")
-        )
+    def extract_model_cards(self, html: str, *, source_url: str) -> list[dict[str, Any]]:
+        """Level 2: generation model cards on a family page.
+
+        Walks the document in order, tracking the most recent heading so each
+        card carries its generation label (e.g. "W177 (2018 - 2022)").
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        cards: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        current_heading: str | None = None
+        for element in soup.find_all(["h1", "h2", "h3", "h4", "a"]):
+            if element.name != "a":
+                text = self._clean_text(element.get_text(" ", strip=True))
+                if text:
+                    current_heading = text
+                continue
+            href = element.get("href")
+            if not href:
+                continue
+            absolute = _canonical_url(urljoin(source_url, str(href)))
+            parsed = urlparse(absolute)
+            if parsed.netloc.lower() != "www.ultimatespecs.com":
+                continue
+            if not _MODEL_CARD_HREF_RE.search(parsed.path):
+                continue
+            if absolute in seen:
+                continue
+            seen.add(absolute)
+            card_text = self._clean_text(element.get_text(" ", strip=True))
+            versions_match = re.search(r"(\d+)\s+Versions?", card_text, re.I)
+            cards.append(
+                {
+                    "generation": current_heading,
+                    "title": re.sub(r"\s*\d+\s+Versions?\s*$", "", card_text, flags=re.I) or None,
+                    "versions": int(versions_match.group(1)) if versions_match else None,
+                    "url": absolute,
+                }
+            )
+        return cards
+
+    def extract_version_links(self, html: str, *, source_url: str) -> list[str]:
+        """Level 3: version detail links (.../<numeric-id>/<slug>.html) on a model page."""
+        soup = BeautifulSoup(html, "html.parser")
+        links: list[str] = []
+        seen: set[str] = set()
+        for anchor in soup.find_all("a", href=True):
+            absolute = _canonical_url(urljoin(source_url, str(anchor["href"])))
+            parsed = urlparse(absolute)
+            if parsed.netloc.lower() != "www.ultimatespecs.com":
+                continue
+            if not _DETAIL_HREF_RE.search(parsed.path):
+                continue
+            if absolute not in seen:
+                seen.add(absolute)
+                links.append(absolute)
+        return links
+
+    # ------------------------------------------------------------------ #
+    # Full-field detail extraction (level 4)                              #
+    # ------------------------------------------------------------------ #
+    def extract_full_detail(
+        self,
+        html: str,
+        *,
+        source_url: str,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        """Parse one version detail page into the wide mercedes_specs_ultimate row."""
+        soup = BeautifulSoup(html, "html.parser")
+        title_tag = soup.find("h1") or soup.find("title")
+        if title_tag is None:
+            return None
+        title = self._clean_text(title_tag.get_text(" ", strip=True))
+        if not title or "mercedes" not in title.lower():
+            return None
+        context = context or {}
+
+        row: dict[str, Any] = {column: None for column in FULL_CSV_COLUMNS}
+        row["source_url"] = source_url
+        row["scraped_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        row["model_family"] = context.get("model_family")
+        row["model_page_title"] = context.get("model_page_title")
+        row["version_name"] = re.sub(r"\s+Specs$", "", title, flags=re.I)
+
+        page_text = soup.get_text("\n", strip=True)
+        self._apply_years(row, f"{title}\n{page_text}")
+
+        for label, value in self._spec_pairs(soup).items():
+            field_name = FULL_SPEC_ALIASES.get(label) or self._fuzzy_full_field(label)
+            if not field_name:
+                continue
+            parsed_value = self._normalize_full_field(field_name, value)
+            if parsed_value is not None and row.get(field_name) is None:
+                row[field_name] = parsed_value
+
+        # Generation priority: family-page heading > detail-page value > title code.
+        if context.get("generation"):
+            row["generation"] = context["generation"]
+        elif not row["generation"]:
+            row["generation"] = self._generation_from_title(title)
+        return row
+
+    def _fuzzy_full_field(self, label: str) -> str | None:
+        """Map label variants the exact alias table misses (NEDC/WLTP suffixes, charging)."""
+        if "charging time" in label or "charging" in label:
+            if "dc" in label or "fast" in label:
+                return "charging_dc"
+            if "wallbox" in label or "wall box" in label:
+                return "charging_wallbox"
+            if "ac" in label:
+                return "charging_ac"
+            return None
+        if "fast charge" in label:
+            return "fast_charge_current"
+        if "fuel consumption" in label or "economy" in label:
+            if "city" in label or "urban" in label and "extra" not in label:
+                return "consumption_city_l100km"
+            if "open road" in label or "highway" in label or "extra urban" in label:
+                return "consumption_openroad_l100km"
+            if "combined" in label:
+                return "consumption_combined_l100km"
+        return None
+
+    def _normalize_full_field(self, field_name: str, value: str) -> Any:
+        value = self._clean_text(value)
+        if not value or value in {"-", "n/a", "N/A"}:
+            return None
+        if field_name in _HP_INT_FIELDS:
+            match = re.search(r"(\d[\d,]*)\s*HP\b", value, re.I)
+            return int(match.group(1).replace(",", "")) if match else self._first_int(value)
+        if field_name in _NM_INT_FIELDS:
+            match = re.search(r"(\d[\d,]*)\s*Nm\b", value, re.I)
+            return int(match.group(1).replace(",", "")) if match else self._first_int(value)
+        if field_name in _PLAIN_INT_FIELDS:
+            return self._first_int(value)
+        if field_name in _FLOAT_FIELDS:
+            return self._first_float(value)
+        if field_name == "fuel_type":
+            return value.title()
+        return value
 
     def _spec_pairs(self, soup: BeautifulSoup) -> dict[str, str]:
         pairs: dict[str, str] = {}
@@ -209,17 +346,6 @@ class UltimateSpecsExtractor:
             if label and value:
                 pairs[label] = value
         return pairs
-
-    def _normalize_field(self, field: str, value: str) -> Any:
-        if field in {"engine_cc", "number_of_gears", "top_speed_kmh", "boot_space_litres", "seat_capacity", "number_of_doors", "torque_nm"}:
-            return self._first_int(value)
-        if field == "zero_to_100_kmh_s":
-            return self._first_float(value)
-        if field == "transmission":
-            return value or None
-        if field == "fuel_type":
-            return value.title() if value else None
-        return value or None
 
     def _apply_years(self, row: dict[str, Any], title: str) -> None:
         range_match = re.search(
@@ -273,23 +399,6 @@ class UltimateSpecsExtractor:
             row["year_start"] = 2014
             row["year_end"] = 2018
 
-    def _variant_from_title(self, title: str) -> str | None:
-        compact_match = re.search(r"\bC\s?200(?:\s+4MATIC)?(?:\s+9G-TRONIC)?\b", title, re.I)
-        if compact_match:
-            return re.sub(r"\s+", " ", compact_match.group(0).upper().replace("C ", "C"))
-        sedan_match = re.search(r"\b(?:Sedan|Berlina|Estate)\s+200\b", title, re.I)
-        if sedan_match:
-            return "C200"
-        class_match = re.search(
-            r"\bClass\s+C\s+\(W\d{3}\)\s+200(?:\s+4MATIC)?(?:\s+9G-TRONIC)?\b",
-            title,
-            re.I,
-        )
-        if not class_match:
-            return None
-        suffix = re.sub(r"^.*?\)\s+", "", class_match.group(0), flags=re.I)
-        return f"C{suffix}".upper()
-
     def _generation_from_title(self, title: str) -> str | None:
         match = re.search(r"\bW\d{3}\b", title, re.I)
         return match.group(0).upper() if match else None
@@ -309,22 +418,7 @@ class UltimateSpecsExtractor:
         return float(match.group(0)) if match else None
 
 
-def upsert_vehicle_specs(session: Session, rows: list[dict[str, Any]]) -> int:
-    written = 0
-    for row in rows:
-        existing = session.query(VehicleSpec).filter(VehicleSpec.source_url == row["source_url"]).one_or_none()
-        if existing:
-            for field, value in row.items():
-                if field != "source_url":
-                    setattr(existing, field, value)
-        else:
-            session.add(VehicleSpec(**row))
-        written += 1
-    session.commit()
-    return written
-
-
-def _build_fetcher() -> PoliteFetcher:
+def _build_fetcher(headless: bool = False) -> PoliteFetcher:
     settings = get_settings()
     return PoliteFetcher(
         ScraperConfig(
@@ -332,137 +426,200 @@ def _build_fetcher() -> PoliteFetcher:
             rate_limit_seconds=settings.scraper_rate_limit_seconds,
             rate_limit_jitter=0.5,
             cache_dir=Path(__file__).parent / "cache" / "ultimatespecs",
-            cache_ttl_hours=24,
+            # 7 days: a multi-day resumed crawl re-parses from cache, no re-fetch.
+            cache_ttl_hours=168,
+            headless=headless,
         )
     )
-
-
-def _fixture_urls() -> list[tuple[str, str]]:
-    path = FIXTURES_DIR / "ultimatespecs_c200_detail.html"
-    return [(path.read_text(encoding="utf-8"), f"{ULTIMATESPECS_BASE}/fixture/mercedes-c200")]
-
-
-def _live_urls(model: str, explicit_url: str | None) -> list[str]:
-    if explicit_url:
-        return [explicit_url]
-    return APPROVED_MODEL_URLS.get(model.lower(), [])
 
 
 def _canonical_url(url: str) -> str:
     return unquote(urldefrag(url)[0])
 
 
-def _is_approved_generation_url(url: str) -> bool:
-    return _canonical_url(url) in APPROVED_GENERATION_URLS
+# --------------------------------------------------------------------------- #
+# Full-brand crawl (brand -> family -> model -> version detail -> CSV)        #
+# --------------------------------------------------------------------------- #
+def load_done_urls(csv_path: Path) -> set[str]:
+    """source_urls already present in the output CSV (resume support)."""
+    if not csv_path.exists():
+        return set()
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        return {r["source_url"] for r in csv.DictReader(handle) if r.get("source_url")}
 
 
-def run(
-    session: Session,
+def append_csv_row(csv_path: Path, row: dict[str, Any]) -> None:
+    """Append one row, writing the header only when the file is new/empty."""
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    needs_header = not csv_path.exists() or csv_path.stat().st_size == 0
+    with csv_path.open("a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FULL_CSV_COLUMNS, extrasaction="ignore")
+        if needs_header:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def _family_name_from_url(url: str) -> str:
+    slug = urlparse(url).path.rstrip("/").rsplit("/", 1)[-1]
+    return slug.removeprefix("Mercedes-Benz-").replace("-", " ")
+
+
+class _RobotsBlocked(Exception):
+    pass
+
+
+def crawl_all(
+    fetcher: PoliteFetcher,
     *,
-    use_fixtures: bool,
-    use_network: bool,
-    model: str = "c200",
-    url: str | None = None,
-    fetcher: PoliteFetcher | None = None,
-) -> UltimateSpecsSummary:
-    extractor = UltimateSpecsExtractor()
-    html_and_urls: list[tuple[str, str]] = []
+    out_path: Path = DEFAULT_CRAWL_CSV,
+    families: list[str] | None = None,
+    max_details: int | None = None,
+    extractor: UltimateSpecsExtractor | None = None,
+    log_every: int = 25,
+) -> CrawlSummary:
+    """Crawl every Mercedes family -> generation model -> version detail to CSV.
 
-    if use_fixtures:
-        html_and_urls = _fixture_urls()
-    elif use_network:
-        urls = _live_urls(model, url)
-        if not urls:
-            return UltimateSpecsSummary(
-                status="not_configured",
-                error=f"No approved UltimateSpecs URL configured for model={model}; pass --url for one approved page.",
-            )
-        fetcher = fetcher or _build_fetcher()
-        for target_url in urls:
-            try:
-                html = fetcher.fetch(target_url)
-            except ValueError as exc:
-                return UltimateSpecsSummary(status="blocked_by_robots", error=str(exc))
-            if not html:
-                return UltimateSpecsSummary(status="fetch_failed", error=getattr(fetcher, "last_error", "") or "empty response")
-            if _is_approved_generation_url(target_url):
-                detail_urls = extractor.extract_c200_detail_links(html, source_url=_canonical_url(target_url))
-                if not detail_urls:
-                    return UltimateSpecsSummary(
-                        status="extract_failed",
-                        fetched=1,
-                        error=f"No C200 detail links found on {target_url}",
-                    )
-                for detail_url in detail_urls:
-                    try:
-                        detail_html = fetcher.fetch(detail_url)
-                    except ValueError as exc:
-                        return UltimateSpecsSummary(status="blocked_by_robots", fetched=1, error=str(exc))
+    Politeness is enforced by the fetcher (robots.txt, rate limit, cache). A
+    robots disallow aborts the whole crawl; any other single-page failure is
+    logged into ``summary.errors`` and the crawl continues.
+    """
+    extractor = extractor or UltimateSpecsExtractor()
+    summary = CrawlSummary(status="ok")
+    done = load_done_urls(out_path)
+    logger.info("crawl_all: %d rows already in %s", len(done), out_path)
+
+    def fetch(url: str) -> str:
+        try:
+            return fetcher.fetch(url)
+        except ValueError as exc:  # robots.txt disallow — stop everything
+            raise _RobotsBlocked(str(exc)) from exc
+
+    try:
+        brand_html = fetch(BRAND_MODELS_URL)
+        if not brand_html:
+            return CrawlSummary(status="fetch_failed", error=getattr(fetcher, "last_error", "") or "empty brand page")
+
+        family_urls = extractor.extract_family_links(brand_html, source_url=BRAND_MODELS_URL)
+        if not family_urls:
+            return CrawlSummary(status="extract_failed", error="no family links found on brand page")
+        if families:
+            # Hyphen-insensitive substring match: "A-Class" matches "A Class".
+            wanted = [f.strip().lower().replace("-", " ") for f in families if f.strip()]
+            family_urls = [
+                u for u in family_urls
+                if any(w in _family_name_from_url(u).lower() for w in wanted)
+            ]
+            if not family_urls:
+                return CrawlSummary(
+                    status="extract_failed",
+                    error=f"--families filter {families} matched none of the site's families",
+                )
+
+        for family_url in family_urls:
+            family_name = _family_name_from_url(family_url)
+            family_html = fetch(family_url)
+            if not family_html:
+                summary.errors.append(f"family fetch failed: {family_url}")
+                continue
+            summary.families += 1
+
+            for card in extractor.extract_model_cards(family_html, source_url=family_url):
+                model_html = fetch(card["url"])
+                if not model_html:
+                    summary.errors.append(f"model fetch failed: {card['url']}")
+                    continue
+                summary.model_pages += 1
+                context = {
+                    "model_family": family_name,
+                    "generation": card.get("generation"),
+                    "model_page_title": card.get("title"),
+                }
+
+                for detail_url in extractor.extract_version_links(model_html, source_url=card["url"]):
+                    if detail_url in done:
+                        summary.details_skipped += 1
+                        continue
+                    if max_details is not None and summary.details_scraped >= max_details:
+                        logger.info("crawl_all: reached --max-details=%d, stopping", max_details)
+                        return summary
+                    detail_html = fetch(detail_url)
                     if not detail_html:
-                        return UltimateSpecsSummary(
-                            status="fetch_failed",
-                            fetched=1,
-                            error=getattr(fetcher, "last_error", "") or "empty response",
+                        summary.errors.append(f"detail fetch failed: {detail_url}")
+                        continue
+                    row = extractor.extract_full_detail(
+                        detail_html, source_url=detail_url, context=context
+                    )
+                    if row is None:
+                        summary.errors.append(f"detail parse failed: {detail_url}")
+                        continue
+                    append_csv_row(out_path, row)
+                    done.add(detail_url)
+                    summary.details_scraped += 1
+                    if summary.details_scraped % log_every == 0:
+                        logger.info(
+                            "crawl_all: %d scraped / %d skipped (family=%s)",
+                            summary.details_scraped, summary.details_skipped, family_name,
                         )
-                    html_and_urls.append((detail_html, detail_url))
-            else:
-                html_and_urls.append((html, _canonical_url(target_url)))
-
-    rows: list[dict[str, Any]] = []
-    for html, source_url in html_and_urls:
-        row = extractor.extract_detail(html, source_url=source_url)
-        if row is None:
-            return UltimateSpecsSummary(status="extract_failed", fetched=len(html_and_urls), error=f"Could not parse {source_url}")
-        rows.append(row)
-
-    stored = upsert_vehicle_specs(session, rows)
-    return UltimateSpecsSummary(status="ok", fetched=len(rows), stored=stored)
-
-
-def regenerate_joined_export(session: Session, output_path: Path = JOINED_EXPORT_PATH) -> int:
-    rows = load_joined_specs_rows(session)
-    write_joined_specs_csv(rows, output_path)
-    return len(rows)
+    except _RobotsBlocked as exc:
+        summary.status = "blocked_by_robots"
+        summary.error = str(exc)
+    finally:
+        close = getattr(fetcher, "close", None)
+        if callable(close):
+            close()
+    return summary
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="UltimateSpecs Mercedes C200 technical-spec ingest")
-    mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--fixtures", action="store_true", help="Parse saved fixture HTML with no network")
-    mode.add_argument("--live", action="store_true", help="Fetch one approved UltimateSpecs page politely")
-    parser.add_argument("--model", default="c200", help="Approved model key; currently scoped to c200")
-    parser.add_argument("--url", help="One explicitly approved UltimateSpecs detail URL for live mode")
+    parser = argparse.ArgumentParser(
+        description="Crawl every Mercedes-Benz family -> generation -> version on "
+        "UltimateSpecs into a single specs CSV"
+    )
+    parser.add_argument(
+        "--families",
+        help='Comma-separated family filter (substring match, e.g. "A-Class,C-Class")',
+    )
+    parser.add_argument(
+        "--max-details",
+        type=int,
+        help="Stop after scraping this many new detail pages (pilot cap)",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=DEFAULT_CRAWL_CSV,
+        help=f"Output CSV (default: {DEFAULT_CRAWL_CSV})",
+    )
+    parser.add_argument("--headless", action="store_true", help="Run the browser headless")
     return parser.parse_args(argv)
 
 
-def cli(argv: list[str] | None = None) -> UltimateSpecsSummary:
+def cli(argv: list[str] | None = None) -> CrawlSummary:
     args = parse_args(argv)
-    init_db()
-    session = SessionLocal()
-    joined_rows = 0
-    try:
-        summary = run(
-            session,
-            use_fixtures=bool(args.fixtures),
-            use_network=bool(args.live),
-            model=args.model,
-            url=args.url,
-        )
-        if summary.status == "ok":
-            joined_rows = regenerate_joined_export(session)
-    finally:
-        session.close()
-
+    families = [f for f in (args.families or "").split(",") if f.strip()] or None
+    fetcher = _build_fetcher(headless=bool(args.headless))
+    summary = crawl_all(
+        fetcher,
+        out_path=args.out,
+        families=families,
+        max_details=args.max_details,
+    )
     print("\n" + "=" * 60)
-    print("ULTIMATESPECS INGEST SUMMARY")
+    print("ULTIMATESPECS FULL CRAWL SUMMARY")
     print("=" * 60)
-    print(f"Status:  {summary.status}")
-    print(f"Fetched: {summary.fetched}")
-    print(f"Stored:  {summary.stored}")
+    print(f"Status:           {summary.status}")
+    print(f"Families:         {summary.families}")
+    print(f"Model pages:      {summary.model_pages}")
+    print(f"Details scraped:  {summary.details_scraped}")
+    print(f"Details skipped:  {summary.details_skipped} (already in CSV)")
+    print(f"Errors:           {len(summary.errors)}")
+    for err in summary.errors[:10]:
+        print(f"  - {err}")
+    if len(summary.errors) > 10:
+        print(f"  ... and {len(summary.errors) - 10} more")
     if summary.error:
-        print(f"Error:   {summary.error}")
-    if summary.status == "ok":
-        print(f"Joined export: {JOINED_EXPORT_PATH} ({joined_rows} rows)")
+        print(f"Fatal error:      {summary.error}")
+    print(f"Output CSV:       {args.out}")
     print("=" * 60 + "\n")
     return summary
 
