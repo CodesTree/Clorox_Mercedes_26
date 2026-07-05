@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import booking, diagnostics, market, telemetry, valuation, vehicle
+from app.routers import advisory, booking, diagnostics, market, telemetry, valuation, vehicle
 from app.schemas import HealthOut
 
 settings = get_settings()
@@ -32,6 +32,8 @@ app.include_router(telemetry.router)
 app.include_router(diagnostics.router)
 app.include_router(vehicle.router)
 app.include_router(booking.router)
+app.include_router(advisory.router)
+app.include_router(advisory.router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthOut, tags=["meta"])

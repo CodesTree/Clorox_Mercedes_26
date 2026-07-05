@@ -286,6 +286,80 @@ button {
   z-index: 2;
 }
 
+.voice-advisor {
+  position: absolute;
+  left: 50%;
+  top: 116px;
+  transform: translateX(-50%);
+  z-index: 4;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(7, 11, 12, 0.72);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 7px 11px;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.voice-advisor__orb {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 16px rgba(0, 210, 190, 0.8);
+}
+
+.voice-advisor--greeting .voice-advisor__orb,
+.voice-advisor--answering .voice-advisor__orb {
+  background: var(--text);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.7);
+}
+
+.voice-advisor--question {
+  color: var(--accent);
+  border-color: var(--line-bright);
+}
+
+.voice-advisor kbd {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font: inherit;
+  padding: 2px 5px;
+}
+
+.voice-advisor__response {
+  position: absolute;
+  left: 50%;
+  top: 160px;
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: min(560px, calc(100vw - 32px));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(7, 11, 12, 0.78);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.voice-advisor__response small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 .dock-button {
   min-width: 58px;
   height: 44px;
@@ -929,11 +1003,12 @@ button {
 
   .stage-topbar,
   .value-header,
-  .telemetry-rail,
-  .component-dock,
-  .car-stage,
-  .component-detail,
-  .cta-cluster,
+    .telemetry-rail,
+    .component-dock,
+    .voice-advisor,
+    .car-stage,
+    .component-detail,
+    .cta-cluster,
   .depreciation-panel,
   .orbit-hint {
     position: static;
@@ -948,6 +1023,10 @@ button {
     justify-items: stretch;
     justify-content: flex-start;
     padding-bottom: 4px;
+  }
+
+  .voice-advisor {
+    justify-self: center;
   }
 
   .dock-button,

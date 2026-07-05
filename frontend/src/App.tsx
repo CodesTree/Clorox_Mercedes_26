@@ -33,6 +33,7 @@ import type { ComponentId } from "./components/componentConfig";
 import { DepreciationChart } from "./components/DepreciationChart";
 import { TelemetryRail } from "./components/TelemetryRail";
 import { ValueHeader } from "./components/ValueHeader";
+import { VoiceAdvisor } from "./components/VoiceAdvisor";
 import { CarScene } from "./scene/CarScene";
 import "./styles/theme.css";
 
@@ -261,6 +262,7 @@ export default function App() {
         <div className="orbit-hint">Drag to orbit - Scroll to zoom</div>
         <TelemetryRail snapshot={dashboard.snapshot} faults={dashboard.faults} />
         <ComponentDock selected={selectedComponent} onSelect={setSelectedComponent} />
+        <VoiceAdvisor />
 
         <section className="car-stage" aria-label="Interactive Mercedes 3D valuation model">
           <CarScene selected={selectedComponent} onSelect={setSelectedComponent} />

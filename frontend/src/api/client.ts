@@ -124,6 +124,27 @@ export interface BookingOut {
   payload: BookingPayload | null;
 }
 
+export interface AdvisoryData {
+  current_value_rm: number;
+  estimated_repair_cost_rm: number;
+  predicted_value_after_repair_rm: number;
+  repair_outcome_rm: number;
+  trade_in_now_rm: number;
+  recommendation: "repair" | "trade_in";
+  summary: string;
+}
+
+export interface AdvisoryVoiceResponse {
+  reply: string;
+  audio_base64: string | null;
+  mime_type: string | null;
+  tts_provider: "gemini" | "gemini-unavailable";
+  fallback_reason: string | null;
+  text_provider: "gemini" | "local";
+  tts_wait_ms: number;
+  gemini_key_detected: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -141,7 +162,7 @@ function makeUrl(path: string, params?: Record<string, string | number | boolean
       url.searchParams.set(key, String(value));
     }
   }
-  return url.pathname + url.search;
+  return /^https?:\/\//i.test(base) ? url.href : url.pathname + url.search;
 }
 
 async function request<T>(path: string, init?: RequestInit, params?: Record<string, string | number | boolean>) {
@@ -201,6 +222,26 @@ export function createBooking(booking: BookingIn) {
   return request<BookingOut>("/booking", {
     method: "POST",
     body: JSON.stringify(booking),
+  });
+}
+
+export function respondToAdvisoryVoice(question: string, advisory: AdvisoryData) {
+  const url = makeUrl("/advisory/voice/respond");
+  const startedAt = performance.now();
+  console.log("[voice] backend URL used:", url);
+  console.log("[voice] question sent:", question);
+  return request<AdvisoryVoiceResponse>("/advisory/voice/respond", {
+    method: "POST",
+    body: JSON.stringify({ question, advisory }),
+  }).then((response) => {
+    console.log("[voice] response latency ms:", Math.round(performance.now() - startedAt));
+    console.log("[voice] text provider:", response.text_provider);
+    console.log("[voice] tts wait ms:", response.tts_wait_ms);
+    console.log("[voice] reply returned:", response.reply);
+    console.log("[voice] tts_provider:", response.tts_provider);
+    console.log("[voice] fallback_reason:", response.fallback_reason);
+    console.log("[voice] audio_base64 length:", response.audio_base64?.length ?? 0);
+    return response;
   });
 }
 

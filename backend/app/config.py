@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+REPO_ROOT = BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=BACKEND_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore"
     )
 
     database_url: str = "sqlite:///./data/assetiq.db"
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     gemini_api_key: str = ""
+    gemini_tts_model: str = "gemini-3.1-flash-tts-preview"
     google_calendar_credentials_json: str = "./secrets/google_sa.json"
     google_calendar_id: str = "primary"
     google_calendar_timezone: str = "Asia/Kuala_Lumpur"
