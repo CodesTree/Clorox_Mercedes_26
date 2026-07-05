@@ -11,6 +11,7 @@ import {
   isModelUnavailable,
   makeObdStreamUrl,
   predictObd,
+  type BookingOut,
   type DepreciationOut,
   type FaultOut,
   type MarketCompsOut,
@@ -74,6 +75,7 @@ export default function App() {
   const [version, setVersion] = useState("");
   const [selectedComponent, setSelectedComponent] = useState<ComponentId>("engine");
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [activeBooking, setActiveBooking] = useState<BookingOut | null>(null);
   const [advisoryOpen, setAdvisoryOpen] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardState>(initialDashboard);
 
@@ -249,8 +251,18 @@ export default function App() {
         <div className="cta-cluster">
           <div className="cta-actions">
             <button className="inspection-button" type="button" onClick={() => setBookingOpen(true)}>
-              Book certified inspection
-              <span>Step 1 of 2</span>
+              {activeBooking?.status === "sent"
+                ? "Awaiting booking confirmation"
+                : activeBooking?.status === "booked"
+                  ? "Booked"
+                  : "Book certified inspection"}
+              <span>
+                {activeBooking?.status === "sent"
+                  ? `Booking #${activeBooking.booking_id}`
+                  : activeBooking?.status === "booked"
+                    ? "Confirmed"
+                    : "Step 1 of 2"}
+              </span>
             </button>
             <button className="advisory-button" type="button" onClick={() => setAdvisoryOpen(true)}>
               <span aria-hidden="true">AI</span>
@@ -269,6 +281,8 @@ export default function App() {
       <BookingModal
         open={bookingOpen}
         profile={dashboard.profile}
+        activeBooking={activeBooking}
+        onBookingChange={setActiveBooking}
         onClose={() => setBookingOpen(false)}
         onSubmit={(form) =>
           createBooking({

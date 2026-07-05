@@ -235,6 +235,7 @@ def _reply_out(
         booked=booked,
         proposed_date=booking.date,
         proposed_time=booking.time,
+        workshop=booking.workshop,
         round=booking.negotiation_round or 0,
         classification=classification,
         message=message,

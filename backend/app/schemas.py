@@ -173,6 +173,13 @@ class BookingOut(BaseModel):
     dispatched: bool
     dry_run: bool
     payload: dict[str, Any] | None = None
+    # Canonical booking details so the UI shows the confirmed slot rather than
+    # its own editable form state (which drifts on reschedule / modal reopen).
+    name: str = ""
+    workshop: str = ""
+    car_model: str = ""
+    date: str = ""
+    time: str = ""
 
 
 class AdvisoryData(BaseModel):
@@ -210,6 +217,7 @@ class BookingReplyOut(BaseModel):
     booked: bool
     proposed_date: str
     proposed_time: str
+    workshop: str = ""
     round: int
     classification: str  # confirmed | unavailable | unclear | none
     message: str

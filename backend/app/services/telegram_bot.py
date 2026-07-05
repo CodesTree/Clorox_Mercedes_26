@@ -9,7 +9,7 @@ expected to fall back to dry-run behaviour (see booking_agent).
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 
@@ -120,6 +120,12 @@ def fetch_latest_reply(
     # Telegram message dates are whole seconds; DB timestamps may include
     # microseconds, so compare at second precision to avoid dropping a valid
     # immediate reply from the same second as booking.updated_at.
+    # SQLite round-trips DateTime columns as naive datetimes even though the
+    # app always writes UTC (orm.utcnow); treat a naive since_dt as UTC so it
+    # isn't misread as local time (which silently shifted the cutoff by the
+    # server's UTC offset and let stale replies match new bookings).
+    if since_dt is not None and since_dt.tzinfo is None:
+        since_dt = since_dt.replace(tzinfo=timezone.utc)
     since_ts = int(since_dt.timestamp()) if since_dt is not None else None
 
     latest: dict | None = None

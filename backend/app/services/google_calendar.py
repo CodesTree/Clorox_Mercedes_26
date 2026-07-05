@@ -128,7 +128,7 @@ class GoogleCalendarService:
         if self._event_inserter is not None:
             response = self._event_inserter(self.settings.google_calendar_id, event)
         else:
-            response = self.insert_event(self.settings.google_calendar_id, event)
+            response = self._insert_event(self.settings.google_calendar_id, event)
 
         event_id = response.get("id") if isinstance(response, dict) else None
         if not event_id:
