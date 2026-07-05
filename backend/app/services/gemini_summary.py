@@ -50,7 +50,8 @@ class GeminiSummaryClient:
             "Use the provided recommendation and numbers exactly. "
             "Do not change the recommendation. Do not invent values. "
             "Mention the 5-year depreciation comparison and repair cost. "
-            "Return plain text only.\n\n"
+            "Return 1-2 complete sentences. Include the recommendation, repair cost, "
+            "depreciation loss, and 5-year horizon. Return plain text only.\n\n"
             f"Facts:\n{json.dumps(facts, ensure_ascii=False, sort_keys=True)}"
         )
         return {
@@ -83,4 +84,8 @@ def _extract_text(body: dict[str, Any]) -> str | None:
 
     text = " ".join(str(part.get("text", "")).strip() for part in parts if isinstance(part, dict))
     text = " ".join(text.split())
+
+    if len(text.split()) < 12:
+        return None
+
     return text or None
