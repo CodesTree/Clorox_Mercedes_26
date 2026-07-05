@@ -8,6 +8,7 @@ from app.db import engine
 from app.main import app
 from app import orm
 from app.services import telegram_bot
+from app.services.vehicle import ensure_default_profile
 
 
 def _booking_payload(profile_id: int) -> dict:
@@ -25,6 +26,11 @@ def _booking_payload(profile_id: int) -> dict:
 def _create_profile() -> int:
     orm.Base.metadata.create_all(bind=engine)
     with SessionLocal() as session:
+        # Seed the app's own default profile first so it keeps id=1; other
+        # test modules (e.g. test_phase03_api.py) assume id=1 is the SL CLASS
+        # demo profile seeded on first access.
+        ensure_default_profile(session)
+
         profile = orm.VehicleProfile(
             name="Aisha Rahman",
             model="C-Class",
