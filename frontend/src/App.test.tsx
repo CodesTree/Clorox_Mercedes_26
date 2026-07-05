@@ -122,6 +122,21 @@ function mockFetch(options: { modelUnavailable?: boolean; placeholderProfile?: b
           ],
         });
       }
+      if (path.includes("/booking/availability")) {
+        return response({ date: "2026-07-10", slots: ["09:00", "10:00", "11:00"] });
+      }
+      if (path.includes("/check-reply")) {
+        return response({
+          booking_id: 12,
+          status: "booked",
+          booked: true,
+          proposed_date: "2026-07-10",
+          proposed_time: "10:00",
+          round: 0,
+          classification: "confirmed",
+          message: "Confirmed. Calendar event created.",
+        });
+      }
       if (path.includes("/booking")) {
         return response({
           booking_id: 12,
@@ -186,7 +201,7 @@ test("fallback car region selection stays in sync with the component panel", asy
   expect(screen.getByText(/Battery voltage/i)).toBeInTheDocument();
 });
 
-test("booking modal suggests nearest Mercedes centre and submits the hidden inspection purpose", async () => {
+test("booking modal only offers free calendar slots and requires human approval before dispatch", async () => {
   render(<App />);
 
   fireEvent.click(await screen.findByRole("button", { name: /Book certified inspection/i }));
@@ -197,30 +212,35 @@ test("booking modal suggests nearest Mercedes centre and submits the hidden insp
   expect(within(modal).queryByLabelText("Purpose")).not.toBeInTheDocument();
   expect(within(modal).getByText("Hap Seng Star KL")).toBeInTheDocument();
   expect(within(modal).getByText(/Current OBD location/i)).toBeInTheDocument();
-  const timeInput = within(modal).getByLabelText("Time");
-  expect(timeInput.tagName).toBe("INPUT");
-  expect(timeInput).toHaveAttribute("type", "time");
-  expect(timeInput).toHaveAttribute("min", "09:00");
-  expect(timeInput).toHaveAttribute("max", "18:00");
-  expect(timeInput).toHaveAttribute("step", "600");
+
+  // Time options come from Google Calendar availability, not a free-form input.
+  const timeSelect = (await within(modal).findByLabelText("Time")) as HTMLSelectElement;
+  expect(timeSelect.tagName).toBe("SELECT");
+  const options = within(timeSelect).getAllByRole("option").map((o) => o.textContent);
+  expect(options).toEqual(["09:00", "10:00", "11:00"]);
+  fireEvent.change(timeSelect, { target: { value: "10:00" } });
 
   fireEvent.click(within(modal).getByRole("button", { name: /Change workshop/i }));
-  expect(modal).toHaveClass("booking-modal--picker-open");
   const workshopDialog = screen.getByRole("dialog", { name: /Select Mercedes centre/i });
-  expect(workshopDialog.parentElement).toHaveClass("workshop-picker-shell");
-  const workshopButtons = within(workshopDialog).getAllByRole("button", { name: /Select .* km away/i });
-  expect(workshopButtons[0]).toHaveTextContent("Hap Seng Star KL");
-
   fireEvent.click(within(workshopDialog).getByRole("button", { name: /Select NZ Wheels Bangsar/i }));
   expect(within(modal).getByText("NZ Wheels Bangsar")).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: /^Submit booking$/i }));
+  // Step 1 -> Step 2 (review). No booking request should have fired yet.
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("/booking") && !String(url).includes("availability"))).toBe(false);
+  fireEvent.click(within(modal).getByRole("button", { name: /^Next$/i }));
+
+  // Review step shows the assembled details for human approval.
+  expect(within(modal).getByText("Test User")).toBeInTheDocument();
+  expect(within(modal).getByText("NZ Wheels Bangsar")).toBeInTheDocument();
+  expect(within(modal).getByText("10:00")).toBeInTheDocument();
+
+  fireEvent.click(within(modal).getByRole("button", { name: /Confirm & send booking request/i }));
 
   await waitFor(() => expect(screen.getByText(/Dry-run booking saved/i)).toBeInTheDocument());
 
   const bookingCall = vi
     .mocked(fetch)
-    .mock.calls.find(([url]) => String(url).includes("/booking"));
+    .mock.calls.find(([url, init]) => String(url).includes("/booking") && (init as RequestInit | undefined)?.method === "POST");
   expect(bookingCall).toBeDefined();
   const requestBody = JSON.parse(String((bookingCall?.[1] as RequestInit | undefined)?.body));
   expect(requestBody).toMatchObject({
@@ -228,6 +248,7 @@ test("booking modal suggests nearest Mercedes centre and submits the hidden insp
     workshop: "NZ Wheels Bangsar",
     car_model: "Mercedes-AMG GT 63 S 4MATIC+",
     purpose: "Certified inspection",
+    time: "10:00",
   });
 });
 

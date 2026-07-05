@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone as dt_timezone
 from pathlib import Path
@@ -10,8 +11,17 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from app import orm
 from app.config import Settings, get_settings
 
+logger = logging.getLogger(__name__)
 
-CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+# Full calendar scope covers both event writes and freebusy reads with one
+# service-account credential (the SA's access to a given calendar is governed by
+# that calendar's sharing ACL, not by the scope).
+CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+# Working-hours window for bookable slots (local calendar time).
+WORKING_START_HOUR = 9
+WORKING_END_HOUR = 18  # last slot starts at 17:00, ends 18:00
+SLOT_HOURS = 1
 
 
 class GoogleCalendarError(RuntimeError):
@@ -25,6 +35,7 @@ class CalendarEventResult:
 
 
 EventInserter = Callable[[str, dict[str, Any]], dict[str, Any]]
+FreeBusyQuery = Callable[[dict[str, Any]], dict[str, Any]]
 
 
 def _configured_setting(settings: Settings, field_name: str) -> bool:
@@ -40,9 +51,11 @@ class GoogleCalendarService:
         self,
         settings: Settings | None = None,
         event_inserter: EventInserter | None = None,
+        freebusy_query: FreeBusyQuery | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self._event_inserter = event_inserter
+        self._freebusy_query = freebusy_query
 
     @property
     def configured(self) -> bool:
@@ -50,12 +63,15 @@ class GoogleCalendarService:
             self.settings, "google_calendar_credentials_json"
         ) and _configured_setting(self.settings, "google_calendar_id")
 
+    def _resolve_tzinfo(self):
+        try:
+            return ZoneInfo(self.settings.google_calendar_timezone)
+        except ZoneInfoNotFoundError:
+            return dt_timezone(timedelta(hours=8))
+
     def build_booking_event(self, booking: orm.Booking) -> dict[str, Any]:
         timezone_name = self.settings.google_calendar_timezone
-        try:
-            tzinfo = ZoneInfo(timezone_name)
-        except ZoneInfoNotFoundError:
-            tzinfo = dt_timezone(timedelta(hours=8))
+        tzinfo = self._resolve_tzinfo()
 
         start = datetime.fromisoformat(f"{booking.date}T{booking.time}:00").replace(
             tzinfo=tzinfo
@@ -95,28 +111,136 @@ class GoogleCalendarService:
         html_link = response.get("htmlLink") if isinstance(response, dict) else None
         return CalendarEventResult(event_id=str(event_id), html_link=html_link)
 
-    def _insert_event(self, calendar_id: str, event: dict[str, Any]) -> dict[str, Any]:
+    def _load_credentials(self):
         try:
             from google.oauth2 import service_account
-            from googleapiclient.discovery import build
         except ImportError as exc:
             raise GoogleCalendarError(
                 "Google Calendar dependencies missing. Install backend requirements."
             ) from exc
 
-        credentials_source = self.settings.google_calendar_credentials_json.strip()
-        if credentials_source.startswith("{"):
-            credentials = service_account.Credentials.from_service_account_info(
-                json.loads(credentials_source), scopes=[CALENDAR_SCOPE]
-            )
-        else:
-            credentials_path = Path(credentials_source)
-            credentials = service_account.Credentials.from_service_account_file(
-                credentials_path, scopes=[CALENDAR_SCOPE]
-            )
+        source = self.settings.google_calendar_credentials_json.strip()
+        if not source:
+            raise GoogleCalendarError("Service account credentials not configured")
 
-        service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
+        if source.startswith("{"):
+            return service_account.Credentials.from_service_account_info(
+                json.loads(source), scopes=CALENDAR_SCOPES
+            )
+        return service_account.Credentials.from_service_account_file(
+            Path(source), scopes=CALENDAR_SCOPES
+        )
+
+    def _build_service(self):
+        try:
+            from googleapiclient.discovery import build
+        except ImportError as exc:
+            raise GoogleCalendarError(
+                "Google Calendar dependencies missing. Install backend requirements."
+            ) from exc
+        return build(
+            "calendar", "v3", credentials=self._load_credentials(), cache_discovery=False
+        )
+
+    def _insert_event(self, calendar_id: str, event: dict[str, Any]) -> dict[str, Any]:
+        service = self._build_service()
         return service.events().insert(calendarId=calendar_id, body=event).execute()
+
+    def service_account_email(self) -> str | None:
+        """The SA client_email (an identifier, not a secret) to share the calendar with."""
+        source = self.settings.google_calendar_credentials_json.strip()
+        if not source:
+            return None
+        try:
+            if source.startswith("{"):
+                data = json.loads(source)
+            else:
+                path = Path(source)
+                if not path.is_file():
+                    return None
+                data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        email = data.get("client_email") if isinstance(data, dict) else None
+        return str(email) if email else None
+
+    # --- read-only availability (FreeBusy) -----------------------------------
+    #
+    # Reads use the SAME service account as event writes. An API key can only read
+    # public calendars; a private/shared calendar needs the SA (with the calendar
+    # shared to the SA's client_email). Failures raise GoogleCalendarError so
+    # callers can fall back to a deterministic "assume free" result.
+
+    @property
+    def read_configured(self) -> bool:
+        return self.configured
+
+    def query_freebusy(
+        self, time_min: datetime, time_max: datetime
+    ) -> list[tuple[datetime, datetime]]:
+        body = {
+            "timeMin": time_min.isoformat(),
+            "timeMax": time_max.isoformat(),
+            "items": [{"id": self.settings.google_calendar_id}],
+        }
+
+        if self._freebusy_query is not None:
+            response = self._freebusy_query(body)
+        else:
+            if not _configured_setting(self.settings, "google_calendar_credentials_json"):
+                raise GoogleCalendarError("Service account credentials not configured")
+            service = self._build_service()
+            response = service.freebusy().query(body=body).execute()
+
+        calendars = response.get("calendars", {}) if isinstance(response, dict) else {}
+        entry = calendars.get(self.settings.google_calendar_id, {})
+        busy: list[tuple[datetime, datetime]] = []
+        for slot in entry.get("busy", []) or []:
+            try:
+                start = datetime.fromisoformat(slot["start"].replace("Z", "+00:00"))
+                end = datetime.fromisoformat(slot["end"].replace("Z", "+00:00"))
+            except (KeyError, ValueError):
+                continue
+            busy.append((start, end))
+        return busy
+
+    def _candidate_slots(self, date_str: str) -> list[datetime]:
+        tzinfo = self._resolve_tzinfo()
+        day = datetime.fromisoformat(f"{date_str}T00:00:00").replace(tzinfo=tzinfo)
+        return [
+            day.replace(hour=hour, minute=0)
+            for hour in range(WORKING_START_HOUR, WORKING_END_HOUR)
+        ]
+
+    def free_slots_for_date(self, date_str: str) -> list[str]:
+        """Return free 'HH:MM' slot starts within working hours for the date.
+
+        Falls back to all working-hours slots (assume free) when the calendar
+        read is unconfigured or the FreeBusy call fails.
+        """
+        candidates = self._candidate_slots(date_str)
+        if not candidates:
+            return []
+
+        try:
+            time_min = candidates[0]
+            time_max = candidates[-1] + timedelta(hours=SLOT_HOURS)
+            busy = self.query_freebusy(time_min, time_max)
+        except Exception as exc:  # includes GoogleCalendarError + googleapiclient HttpError
+            logger.warning(
+                "FreeBusy unavailable (%s); assuming all slots free for %s", exc, date_str
+            )
+            return [c.strftime("%H:%M") for c in candidates]
+
+        free: list[str] = []
+        for start in candidates:
+            end = start + timedelta(hours=SLOT_HOURS)
+            overlaps = any(
+                busy_start < end and start < busy_end for busy_start, busy_end in busy
+            )
+            if not overlaps:
+                free.append(start.strftime("%H:%M"))
+        return free
 
 
 google_calendar_service = GoogleCalendarService()

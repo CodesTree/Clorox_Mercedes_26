@@ -91,7 +91,9 @@ class Booking(Base):
         String, default="pending"
     )  # pending|sent|confirmed|booked|failed|dry_run
     telegram_message_id: Mapped[str | None]
+    telegram_update_id: Mapped[int | None]
     calendar_event_id: Mapped[str | None]
+    negotiation_round: Mapped[int | None] = mapped_column(default=0)  # reschedule rounds
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

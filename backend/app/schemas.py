@@ -155,3 +155,32 @@ class BookingOut(BaseModel):
     dispatched: bool
     dry_run: bool
     payload: dict[str, Any] | None = None
+
+
+class BookingAvailabilityOut(BaseModel):
+    date: str  # ISO-8601 YYYY-MM-DD
+    slots: list[str]  # free "HH:MM" start times within working hours
+
+
+class BookingReplyOut(BaseModel):
+    booking_id: int
+    status: str
+    booked: bool
+    proposed_date: str
+    proposed_time: str
+    round: int
+    classification: str  # confirmed | unavailable | unclear | none
+    message: str
+
+
+class BookingDiagnosticsOut(BaseModel):
+    """Secret-free view of booking-integration configuration for debugging."""
+
+    telegram_configured: bool
+    telegram_webhook_configured: bool
+    gemini_configured: bool
+    calendar_write_configured: bool
+    calendar_read_configured: bool
+    calendar_id: str
+    service_account_email: str | None = None  # share the calendar with this address
+    freebusy_probe: str  # "ok" or "error: <reason>"

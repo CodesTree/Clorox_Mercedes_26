@@ -126,3 +126,36 @@ def test_booking_creates_shared_calendar_event_when_configured(monkeypatch):
         assert row is not None
         assert row.status == "booked"
         assert row.calendar_event_id == "shared-event-123"
+
+
+def test_free_slots_excludes_busy_intervals_via_service_account():
+    # busy 10:00-11:00 Asia/KL (+08) == 02:00-03:00 UTC on 2026-07-10.
+    def fake_freebusy(body):
+        return {
+            "calendars": {
+                "primary": {
+                    "busy": [
+                        {"start": "2026-07-10T02:00:00Z", "end": "2026-07-10T03:00:00Z"}
+                    ]
+                }
+            }
+        }
+
+    service = GoogleCalendarService(
+        settings=service_account_settings(),
+        freebusy_query=fake_freebusy,
+    )
+    slots = service.free_slots_for_date("2026-07-10")
+
+    assert "10:00" not in slots  # busy hour excluded
+    assert "09:00" in slots
+    assert "11:00" in slots
+
+
+def test_free_slots_falls_back_to_all_when_read_unconfigured():
+    service = GoogleCalendarService(
+        settings=Settings(google_calendar_credentials_json="", google_calendar_id="")
+    )
+    slots = service.free_slots_for_date("2026-07-10")
+    # No SA configured -> assume all working-hours slots free (09:00..17:00).
+    assert slots == [f"{h:02d}:00" for h in range(9, 18)]

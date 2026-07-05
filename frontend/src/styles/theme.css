@@ -743,6 +743,97 @@ button {
   font-size: 13px;
 }
 
+.modal-step {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.booking-modal select {
+  min-width: 0;
+  border: 1px solid rgba(0, 210, 190, 0.22);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(15, 21, 22, 0.98), rgba(8, 13, 14, 0.98));
+  color: var(--text);
+  padding: 10px 12px;
+  color-scheme: dark;
+  accent-color: var(--accent);
+}
+
+.booking-modal select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 210, 190, 0.13);
+}
+
+.slot-hint {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 10px 0;
+}
+
+.booking-modal form > .modal-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.booking-review,
+.booking-status {
+  display: grid;
+  gap: 14px;
+}
+
+.booking-review .modal-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.booking-summary {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.booking-summary > div {
+  display: grid;
+  grid-template-columns: minmax(0, 170px) 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.booking-summary dt {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.booking-summary dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.booking-review__actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+}
+
+.booking-review__actions .primary-button,
+.booking-status .primary-button {
+  height: 44px;
+}
+
 .field-label {
   color: var(--text-dim);
   font-size: 13px;

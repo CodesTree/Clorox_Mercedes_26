@@ -124,6 +124,22 @@ export interface BookingOut {
   payload: BookingPayload | null;
 }
 
+export interface BookingAvailabilityOut {
+  date: string;
+  slots: string[];
+}
+
+export interface BookingReplyOut {
+  booking_id: number;
+  status: string;
+  booked: boolean;
+  proposed_date: string;
+  proposed_time: string;
+  round: number;
+  classification: string;
+  message: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -201,6 +217,16 @@ export function createBooking(booking: BookingIn) {
   return request<BookingOut>("/booking", {
     method: "POST",
     body: JSON.stringify(booking),
+  });
+}
+
+export function getBookingAvailability(date: string) {
+  return request<BookingAvailabilityOut>("/booking/availability", undefined, { date });
+}
+
+export function checkBookingReply(bookingId: number) {
+  return request<BookingReplyOut>(`/booking/${bookingId}/check-reply`, {
+    method: "POST",
   });
 }
 

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  checkBookingReply,
   createBooking,
+  getBookingAvailability,
   getDepreciation,
   getFaults,
   getHealth,
@@ -303,6 +305,8 @@ export default function App() {
             ...form,
           })
         }
+        onGetAvailability={getBookingAvailability}
+        onCheckReply={checkBookingReply}
       />
     </main>
   );
