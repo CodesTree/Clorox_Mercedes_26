@@ -110,7 +110,7 @@ test("booking date and time controls use the dark dashboard theme", () => {
 test("dashboard typography is sized for presentation viewing", () => {
   expect(themeCss).toMatch(/\.value-header h1\s*{[^}]*font-size:\s*64px;/s);
   expect(themeCss).toMatch(/\.telemetry-stat strong\s*{[^}]*font-size:\s*32px;/s);
-  expect(themeCss).toMatch(/\.component-detail p\s*{[^}]*font-size:\s*12px;/s);
+  expect(themeCss).toMatch(/\.component-callout p\s*{[^}]*font-size:\s*12px;/s);
   expect(themeCss).toMatch(/\.dock-button strong\s*{[^}]*font-size:\s*11px;/s);
 });
 
@@ -118,10 +118,20 @@ test("dashboard visual system matches Claude cinematic stage v2", () => {
   expect(themeCss).toContain("--bg: #0a0d0e;");
   expect(themeCss).toMatch(/radial-gradient\(80% 55% at 50% 32%,\s*rgba\(0,\s*210,\s*190,\s*0\.07\)/s);
   expect(themeCss).toMatch(/\.stage-border\s*{[^}]*border-radius:\s*12px;/s);
-  expect(themeCss).toMatch(/\.component-detail,\s*\.depreciation-panel,\s*\.booking-modal\s*{[^}]*border-radius:\s*16px;/s);
+  expect(themeCss).toMatch(/\.component-callout,\s*\.depreciation-panel,\s*\.booking-modal\s*{[^}]*border-radius:\s*16px;/s);
   expect(themeCss).toMatch(/\.dock-button\s*{[^}]*border-radius:\s*14px;/s);
-  expect(themeCss).toMatch(/\.component-detail\s*{[^}]*left:\s*26px;[^}]*bottom:\s*26px;/s);
+  expect(themeCss).toMatch(/\.component-callout--top\s*{[^}]*left:\s*50%;/s);
+  expect(themeCss).toMatch(/\.component-callout--left\s*{[^}]*left:\s*14%;/s);
+  expect(themeCss).toMatch(/\.component-callout--lower-right\s*{[^}]*right:\s*8%;/s);
   expect(themeCss).toMatch(/\.depreciation-panel\s*{[^}]*right:\s*26px;[^}]*bottom:\s*26px;/s);
+});
+
+test("component callout cards anchor to 3 fixed points and fade in", () => {
+  expect(themeCss).toMatch(/@keyframes callout-in\s*{[^}]*opacity:\s*0;/s);
+  expect(themeCss).toMatch(/\.component-callout\s*{[^}]*animation:\s*callout-in\s+180ms\s+ease-out;/s);
+  expect(themeCss).toMatch(/\.component-callout--top\s*{[^}]*top:\s*14%;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/s);
+  expect(themeCss).toMatch(/\.component-callout--left\s*{[^}]*top:\s*48%;[^}]*left:\s*14%;/s);
+  expect(themeCss).toMatch(/\.component-callout--lower-right\s*{[^}]*top:\s*66%;[^}]*right:\s*8%;/s);
 });
 
 test("component selectors map to local highlight regions instead of tinting the full body", () => {
