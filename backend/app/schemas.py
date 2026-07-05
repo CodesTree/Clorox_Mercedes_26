@@ -175,6 +175,30 @@ class BookingOut(BaseModel):
     payload: dict[str, Any] | None = None
 
 
+class AdvisoryData(BaseModel):
+    current_value_rm: int = Field(ge=0)
+    estimated_repair_cost_rm: int = Field(ge=0)
+    predicted_value_after_repair_rm: int = Field(ge=0)
+    repair_outcome_rm: int = Field(ge=0)
+    trade_in_now_rm: int = Field(ge=0)
+    recommendation: Literal["repair", "trade_in"]
+    summary: str
+
+
+class AdvisoryVoiceRequest(BaseModel):
+    question: str
+    advisory: AdvisoryData
+
+
+class AdvisoryVoiceResponse(BaseModel):
+    reply: str
+    audio_base64: str | None = None
+    mime_type: str | None = None
+    tts_provider: Literal["gemini", "gemini-unavailable"] = "gemini-unavailable"
+    fallback_reason: str | None = None
+    text_provider: Literal["gemini", "local"] = "local"
+    tts_wait_ms: int = 0
+    gemini_key_detected: bool = False
 class BookingAvailabilityOut(BaseModel):
     date: str  # ISO-8601 YYYY-MM-DD
     slots: list[str]  # free "HH:MM" start times within working hours

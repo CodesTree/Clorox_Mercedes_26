@@ -33,6 +33,8 @@ app.include_router(telemetry.router)
 app.include_router(diagnostics.router)
 app.include_router(vehicle.router)
 app.include_router(booking.router)
+app.include_router(advisory.router)
+app.include_router(advisory.router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthOut, tags=["meta"])
