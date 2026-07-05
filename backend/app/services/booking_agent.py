@@ -80,6 +80,9 @@ def process_reply(session: Session, booking: orm.Booking) -> BookingReplyOut:
             message=f"Booking already {booking.status}.",
         )
 
+    if booking.status == "confirmed":
+        return _confirm_and_book(session, booking)
+
     last_update_id = booking.telegram_update_id
     allow_unthreaded = _allow_unthreaded_reply(session)
     offset = (
