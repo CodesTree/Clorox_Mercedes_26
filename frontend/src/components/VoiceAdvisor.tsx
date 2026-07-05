@@ -11,6 +11,9 @@ import {
   speakAssistant,
   stopAllVoice,
 } from "./voiceAdvisory";
+import { useMicLevel, usePlaybackLevel } from "./voiceAudioLevel";
+import { VoiceVisualizer } from "./VoiceVisualizer";
+import { isPillState, levelSourceForState } from "./voiceVisualizerLogic";
 
 type VoiceState =
   | "unsupported"
@@ -89,7 +92,12 @@ function getDebugMode(mode: RecognitionMode): RecognitionDebugMode {
   return mode === "followup" ? "waiting_for_followup" : mode;
 }
 
-export function VoiceAdvisor() {
+interface VoiceAdvisorProps {
+  pendingVoiceAction: "greet" | "demo" | null;
+  onPendingVoiceActionHandled: () => void;
+}
+
+export function VoiceAdvisor({ pendingVoiceAction, onPendingVoiceActionHandled }: VoiceAdvisorProps) {
   const [voiceState, setVoiceState] = useState<VoiceState>("waiting_for_wake");
   const [debugInfo, setDebugInfo] = useState({
     rawTranscript: "",
@@ -109,6 +117,7 @@ export function VoiceAdvisor() {
   });
   const [assistantText, setAssistantText] = useState("");
   const [voiceStatusMessage, setVoiceStatusMessage] = useState("");
+  const [activeAudioElement, setActiveAudioElement] = useState<HTMLAudioElement | null>(null);
   const modeRef = useRef<RecognitionMode>("wake");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionActiveRef = useRef(false);
@@ -245,6 +254,7 @@ export function VoiceAdvisor() {
   const onSpeechEnd = (onEnd?: () => void) => {
     speechReservedRef.current = false;
     isSpeakingRef.current = false;
+    setActiveAudioElement(null);
     onEnd?.();
   };
 
@@ -327,13 +337,16 @@ export function VoiceAdvisor() {
         audioBase64: cachedFiller.audio_base64,
         mimeType: cachedFiller.mime_type,
         onStart: () => undefined,
+        onAudioElement: setActiveAudioElement,
         onEnd: () => {
           console.log("[voice] filler ended");
+          setActiveAudioElement(null);
           resolve();
         },
         onPlaybackError: (error) => {
           console.warn("[voice] filler playback failed", error);
           console.log("[voice] filler ended");
+          setActiveAudioElement(null);
           resolve();
         },
       });
@@ -383,6 +396,7 @@ export function VoiceAdvisor() {
       audioBase64: response.audio_base64,
       mimeType: response.mime_type,
       onStart: () => onSpeechStart({ answer: options.answer }),
+      onAudioElement: setActiveAudioElement,
       onEnd: () => onSpeechEnd(onEnd),
       onPlaybackError: (error) => handlePlaybackError(error, onEnd),
     });
@@ -660,25 +674,23 @@ export function VoiceAdvisor() {
   }, []);
 
   useEffect(() => {
-    const runVoiceShortcut = (event: KeyboardEvent) => {
-      if (!event.altKey) return;
-      const key = event.key.toLowerCase();
-      if (key !== "a" && key !== "d") return;
-      event.preventDefault();
-      if (speechReservedRef.current || isSpeakingRef.current || getIsSpeaking()) return;
+    if (!pendingVoiceAction) return;
+    if (speechReservedRef.current || isSpeakingRef.current || getIsSpeaking()) return;
 
-      if (key === "a") {
-        stopRecognition();
-        greet();
-        return;
-      }
-
+    if (pendingVoiceAction === "greet") {
+      stopRecognition();
+      greet();
+    } else {
       answerQuestion(demoQuestion, { demo: true });
-    };
+    }
+    onPendingVoiceActionHandled();
+  }, [pendingVoiceAction]);
 
-    window.addEventListener("keydown", runVoiceShortcut);
-    return () => window.removeEventListener("keydown", runVoiceShortcut);
-  }, []);
+  const levelSource = levelSourceForState(voiceState);
+  const micLevel = useMicLevel(levelSource === "mic");
+  const playbackLevel = usePlaybackLevel(levelSource === "playback" ? activeAudioElement : null);
+  const { level, idle } =
+    levelSource === "mic" ? micLevel : levelSource === "playback" ? playbackLevel : { level: 0, idle: true };
 
   const label =
     voiceState === "unsupported"
@@ -704,10 +716,16 @@ export function VoiceAdvisor() {
   return (
     <>
       <div className={`voice-advisor voice-advisor--${voiceState}`} aria-live="polite" data-testid="voice-advisor">
-        <span className="voice-advisor__orb" aria-hidden="true" />
-        <span>{label}</span>
-        <kbd>Alt+A</kbd>
-        <kbd>Alt+D</kbd>
+        {isPillState(voiceState) ? (
+          <>
+            <span className="voice-advisor__orb" aria-hidden="true" />
+            <span>{label}</span>
+            <kbd>Alt+A</kbd>
+            <kbd>Alt+D</kbd>
+          </>
+        ) : (
+          <VoiceVisualizer level={level} idle={idle} />
+        )}
       </div>
       {assistantText ? (
         <div className="voice-advisor__response" aria-live="polite">
@@ -715,21 +733,7 @@ export function VoiceAdvisor() {
           {voiceStatusMessage ? <small>{voiceStatusMessage}</small> : null}
         </div>
       ) : null}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 12,
-          right: 12,
-          background: "rgba(0,0,0,0.85)",
-          color: "#0f0",
-          fontFamily: "monospace",
-          fontSize: 12,
-          padding: "8px 12px",
-          borderRadius: 6,
-          zIndex: 9999,
-          maxWidth: 320,
-        }}
-      >
+      <div className="voice-advisor__debug">
         {voiceState === "waiting_for_followup" && debugInfo.recognitionState === "listening" ? (
           <div>Listening for follow-up...</div>
         ) : null}
