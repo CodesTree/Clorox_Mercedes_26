@@ -89,9 +89,12 @@ export function AdvisoryModal({
     depreciation?.[depreciation.length - 1] ??
     ({ year: 2028, value_rm: Math.round(currentValue * 0.84), retained_pct: 0.84 } satisfies DepreciationPoint);
   const depreciationLoss = advisory?.depreciation_loss_rm ?? Math.max(0, currentValue - comparisonPoint.value_rm);
-  const advantage = Math.max(0, depreciationLoss - totalRepairCost);
+  const keepValueDelta = depreciationLoss - totalRepairCost;
   const horizonLabel = advisory ? `${advisory.horizon_years} years` : "5 years";
-  const recommendation = advisory?.recommendation ?? (advantage > 0 ? "Repair and keep" : "Sell");
+  const recommendation = advisory?.recommendation ?? (keepValueDelta > 0 ? "Repair and keep" : "Sell");
+  const shouldSell = recommendation.toLowerCase().includes("sell");
+  const metricValue = shouldSell ? Math.max(0, -keepValueDelta) : Math.max(0, keepValueDelta);
+  const metricLabel = shouldSell ? "loss if repaired" : "advantage";
   const health = snapshot?.health ?? 87;
   const confidence = clamp(Math.round((prediction?.confidence ?? 0.72) * 72 + health * 0.28), 55, 92);
   const marketSignal =
@@ -144,7 +147,9 @@ export function AdvisoryModal({
             </h2>
             <div className="advisory-metrics">
               <strong>{confidence}% confidence</strong>
-              <strong>{formatCompactRm(advantage)} advantage</strong>
+              <strong>
+                {formatCompactRm(metricValue)} {metricLabel}
+              </strong>
               <span>{marketSignal}</span>
             </div>
           </div>

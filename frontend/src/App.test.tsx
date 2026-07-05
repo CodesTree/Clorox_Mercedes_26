@@ -324,6 +324,7 @@ test("advisory tags respond to sell recommendations", async () => {
 
   const modal = screen.getByRole("dialog", { name: "AssetIQ advisory" });
   expect(await within(modal).findByText(/Gemini says sell/i)).toBeInTheDocument();
+  expect(within(modal).getByText("RM 42K loss if repaired")).toBeInTheDocument();
   expect(within(modal).getByText("Trade-in path")).toBeInTheDocument();
   expect(within(modal).getByText("Price trade-in first")).toBeInTheDocument();
   expect(within(modal).getByText("Review trade-in now")).toBeInTheDocument();
