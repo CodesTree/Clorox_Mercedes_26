@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,7 @@ from app.schemas import DepreciationOut, DepreciationPoint, PredictOut
 
 MODEL_UNAVAILABLE_DETAIL = "train model first: python -m ml.train"
 DEFAULT_ARTIFACT_PATH = Path(__file__).resolve().parents[2] / "ml" / "artifacts" / "model.joblib"
+DEFAULT_DEPRECIATION_RATE = Decimal("0.05")
 
 
 class ModelUnavailable(RuntimeError):
@@ -73,12 +75,20 @@ class PredictorService:
         return PredictOut(value_rm=value, low_rm=low, high_rm=high, confidence=0.92)
 
     def depreciation(self, profile: Any, years: int) -> DepreciationOut:
-        baseline = self.predict(profile).value_rm
+        original_price = _field(profile, "original_purchase_price_rm")
+        if original_price is None:
+            original_price = self.predict(profile).value_rm
+
+        original_price_dec = Decimal(int(original_price))
         current_year = datetime.now().year
+        vehicle_age = max(0, current_year - int(_field(profile, "year", current_year)))
+        annual_retention = Decimal("1") - DEFAULT_DEPRECIATION_RATE
         points = []
         for offset in range(years + 1):
-            value = max(0, int(round(baseline * (0.95**offset))))
-            retained = round(value / baseline, 4) if baseline > 0 else 0.0
+            years_since_purchase = vehicle_age + offset
+            value_dec = original_price_dec * (annual_retention**years_since_purchase)
+            value = max(0, int(value_dec.quantize(Decimal("1"), rounding=ROUND_HALF_UP)))
+            retained = round(value / int(original_price), 4) if int(original_price) > 0 else 0.0
             points.append(
                 DepreciationPoint(
                     year=current_year + offset,

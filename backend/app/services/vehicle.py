@@ -18,6 +18,7 @@ DEFAULT_PROFILE = {
     "transmission": "Automatic",
     "fuel_type": "Petrol",
     "engine_size": 5.5,
+    "original_purchase_price_rm": 738000,
     "service_history_count": 6,
     "service_history_total": 7,
     "service_history_max": 7,
@@ -54,6 +55,7 @@ def update_default_profile(session: Session, data: VehicleProfileIn) -> orm.Vehi
     profile.transmission = data.transmission
     profile.fuel_type = data.fuel_type
     profile.engine_size = data.engine_size
+    profile.original_purchase_price_rm = data.original_purchase_price_rm
     if data.service_history_count is not None:
         profile.service_history_count = data.service_history_count
     if data.service_history_total is not None:

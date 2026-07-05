@@ -46,9 +46,34 @@ class GoogleCalendarService:
 
     @property
     def configured(self) -> bool:
-        return _configured_setting(
-            self.settings, "google_calendar_credentials_json"
-        ) and _configured_setting(self.settings, "google_calendar_id")
+        return self.configuration_error() is None
+
+    def configuration_error(self) -> str | None:
+        missing = [
+            env_name
+            for field_name, env_name in [
+                ("google_calendar_credentials_json", "GOOGLE_CALENDAR_CREDENTIALS_JSON"),
+                ("google_calendar_id", "GOOGLE_CALENDAR_ID"),
+            ]
+            if not _configured_setting(self.settings, field_name)
+        ]
+        if missing:
+            return f"Shared Google Calendar is not configured. Missing: {', '.join(missing)}."
+
+        credentials_source = self.settings.google_calendar_credentials_json.strip()
+        if credentials_source.startswith("{"):
+            return None
+
+        credentials_path = Path(credentials_source)
+        if not credentials_path.exists():
+            return (
+                f"Google Calendar credentials file not found: {credentials_path}. "
+                "Add the service account JSON file or update GOOGLE_CALENDAR_CREDENTIALS_JSON."
+            )
+        if not credentials_path.is_file():
+            return f"Google Calendar credentials path is not a file: {credentials_path}."
+
+        return None
 
     def build_booking_event(self, booking: orm.Booking) -> dict[str, Any]:
         timezone_name = self.settings.google_calendar_timezone
@@ -79,8 +104,9 @@ class GoogleCalendarService:
         }
 
     def create_booking_event(self, booking: orm.Booking) -> CalendarEventResult:
-        if not self.configured:
-            raise GoogleCalendarError("Shared Google Calendar is not configured")
+        config_error = self.configuration_error()
+        if config_error is not None:
+            raise GoogleCalendarError(config_error)
 
         event = self.build_booking_event(booking)
         if self._event_inserter is not None:

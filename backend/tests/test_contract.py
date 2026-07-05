@@ -5,6 +5,7 @@ from app.main import app
 EXPECTED_PATHS = {
     "/health": {"get"},
     "/predict": {"post"},
+    "/advisory/interpret": {"get"},
     "/market/comps": {"get"},
     "/depreciation": {"get"},
     "/obd/snapshot": {"get"},

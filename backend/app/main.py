@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import booking, diagnostics, market, telemetry, valuation, vehicle
+from app.routers import advisory, booking, diagnostics, market, telemetry, valuation, vehicle
 from app.schemas import HealthOut
 
 settings = get_settings()
@@ -27,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(valuation.router)
+app.include_router(advisory.router)
 app.include_router(market.router)
 app.include_router(telemetry.router)
 app.include_router(diagnostics.router)
