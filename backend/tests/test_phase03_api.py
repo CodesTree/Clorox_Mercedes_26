@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi.testclient import TestClient
 
@@ -16,6 +17,7 @@ PROFILE_PAYLOAD = {
     "transmission": "Automatic",
     "fuel_type": "Petrol",
     "engine_size": 5.5,
+    "original_purchase_price_rm": 738000,
     "mpg": 30.4,
     "tax": 305.0,
     "service_history_count": 6,
@@ -76,11 +78,22 @@ def test_depreciation_with_stub_predictor_returns_points(monkeypatch):
     assert body["points"][0]["retained_pct"] == 1.0
 
 
-def test_depreciation_without_model_artifact_returns_actionable_503():
+def test_depreciation_with_original_purchase_price_does_not_need_model_artifact():
     with TestClient(app) as client:
         resp = client.get("/depreciation", params={"profile_id": 1, "years": 2})
-    assert resp.status_code == 503
-    assert resp.json() == {"detail": "train model first: python -m ml.train"}
+    assert resp.status_code == 200
+    body = resp.json()
+    current_year = datetime.now().year
+    current_age = current_year - PROFILE_PAYLOAD["year"]
+    expected_value = int(
+        (Decimal(PROFILE_PAYLOAD["original_purchase_price_rm"]) * (Decimal("0.95") ** current_age))
+        .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
+    assert body["points"][0] == {
+        "year": current_year,
+        "value_rm": expected_value,
+        "retained_pct": round(expected_value / PROFILE_PAYLOAD["original_purchase_price_rm"], 4),
+    }
 
 
 def test_vehicle_profile_is_seeded_and_updatable():
@@ -278,7 +291,9 @@ def test_booking_persists_and_returns_dry_run_payload_without_keys():
     assert body["status"] == "dry_run"
     assert body["dispatched"] is False
     assert body["dry_run"] is True
-    assert body["payload"]["text"].count("Certified inspection") == 1
+    # /booking dispatches via Telegram (see tests/05_agents_tests/test_booking_route.py);
+    # with no Telegram credentials configured it falls back to dry-run without a payload.
+    assert body["payload"] is None
 
     with SessionLocal() as session:
         row = session.get(orm.Booking, body["booking_id"])

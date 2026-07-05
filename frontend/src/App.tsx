@@ -27,6 +27,7 @@ import {
   demoProfile,
   demoSnapshot,
 } from "./api/mockData";
+import { AdvisoryModal } from "./components/AdvisoryModal";
 import { BookingModal } from "./components/BookingModal";
 import { ComponentDetail } from "./components/ComponentDetail";
 import { ComponentDock } from "./components/ComponentDock";
@@ -72,6 +73,7 @@ export default function App() {
   const [version, setVersion] = useState("");
   const [selectedComponent, setSelectedComponent] = useState<ComponentId>("engine");
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [advisoryOpen, setAdvisoryOpen] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardState>(initialDashboard);
 
   useEffect(() => {
@@ -243,10 +245,16 @@ export default function App() {
         />
 
         <div className="cta-cluster">
-          <button className="inspection-button" type="button" onClick={() => setBookingOpen(true)}>
-            Book certified inspection
-            <span>Step 1 of 2</span>
-          </button>
+          <div className="cta-actions">
+            <button className="inspection-button" type="button" onClick={() => setBookingOpen(true)}>
+              Book certified inspection
+              <span>Step 1 of 2</span>
+            </button>
+            <button className="advisory-button" type="button" onClick={() => setAdvisoryOpen(true)}>
+              <span aria-hidden="true">AI</span>
+              Advisory
+            </button>
+          </div>
           <p>Next official slot - Fri 10 Jul - Hap Seng Star KL</p>
         </div>
 
@@ -268,6 +276,20 @@ export default function App() {
         }
         onGetAvailability={getBookingAvailability}
         onCheckReply={checkBookingReply}
+      />
+      <AdvisoryModal
+        open={advisoryOpen}
+        profile={dashboard.profile}
+        prediction={dashboard.prediction}
+        depreciation={dashboard.depreciation?.points ?? null}
+        snapshot={dashboard.snapshot}
+        faults={dashboard.faults}
+        market={dashboard.market}
+        onClose={() => setAdvisoryOpen(false)}
+        onBookInspection={() => {
+          setAdvisoryOpen(false);
+          setBookingOpen(true);
+        }}
       />
     </main>
   );

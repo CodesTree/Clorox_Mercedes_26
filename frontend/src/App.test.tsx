@@ -253,6 +253,18 @@ test("booking modal only offers free calendar slots and requires human approval 
   });
 });
 
+test("advisory button opens the mock keep-versus-sell advisory surface", async () => {
+  render(<App />);
+
+  fireEvent.click(await screen.findByRole("button", { name: /Advisory/i }));
+
+  const modal = screen.getByRole("dialog", { name: "AssetIQ advisory" });
+  expect(within(modal).getByText(/Keep vs sell analysis/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/Gemini insight/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/View repair priorities/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/Book trade-in appointment/i)).toBeInTheDocument();
+});
+
 test("shows graceful placeholders when valuation models are not trained", async () => {
   mockFetch({ modelUnavailable: true });
 

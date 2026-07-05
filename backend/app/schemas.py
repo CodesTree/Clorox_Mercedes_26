@@ -21,6 +21,7 @@ class VehicleProfileIn(BaseModel):
     transmission: str
     fuel_type: str
     engine_size: float = Field(ge=0)
+    original_purchase_price_rm: int | None = Field(default=None, ge=0)
     mpg: float | None = None
     tax: float | None = None
     service_history_count: int | None = Field(default=None, ge=0)
@@ -137,6 +138,23 @@ class FaultOut(BaseModel):
 
 class FaultsOut(BaseModel):
     faults: list[FaultOut]
+
+
+class RepairItemOut(BaseModel):
+    name: str
+    cost_rm: int = Field(ge=0)
+
+
+class AdvisoryInterpretOut(BaseModel):
+    recommendation: Literal["Sell", "Repair and keep"]
+    summary: str
+    horizon_years: int
+    current_value_rm: int
+    horizon_value_rm: int
+    depreciation_loss_rm: int
+    total_repair_cost_rm: int
+    repairs: list[RepairItemOut]
+    llm_used: bool = False
 
 
 class BookingIn(BaseModel):

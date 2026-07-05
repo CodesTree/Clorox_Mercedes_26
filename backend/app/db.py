@@ -1,6 +1,7 @@
 """Engine/session wiring. DATABASE_URL is a secret — never log or echo it."""
 from pathlib import Path
 
+from sqlalchemy import inspect, text
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.5-flash"
     google_calendar_credentials_json: str = "./secrets/google_sa.json"
     google_calendar_id: str = "primary"
     google_calendar_timezone: str = "Asia/Kuala_Lumpur"

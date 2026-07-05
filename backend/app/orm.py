@@ -67,6 +67,7 @@ class VehicleProfile(Base):
     transmission: Mapped[str]
     fuel_type: Mapped[str]
     engine_size: Mapped[float]
+    original_purchase_price_rm: Mapped[int | None]
     service_history_count: Mapped[int] = mapped_column(default=0)
     service_history_total: Mapped[int] = mapped_column(default=0)
     service_history_max: Mapped[int] = mapped_column(default=0)

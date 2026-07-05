@@ -72,6 +72,7 @@ def booking_availability(
 @router.post("/booking", response_model=BookingOut)
 def create_booking(
     booking: BookingIn,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
 ) -> BookingOut:
     # Gated primary: when Telegram is configured, propose and wait for a human
