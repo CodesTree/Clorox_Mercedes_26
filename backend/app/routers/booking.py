@@ -106,6 +106,11 @@ def create_booking(
                 if dry_run
                 else {"telegram_message_id": booking_row.telegram_message_id}
             ),
+            name=booking_row.name,
+            workshop=booking_row.workshop,
+            car_model=booking_row.car_model,
+            date=booking_row.date,
+            time=booking_row.time,
         )
 
     # Fallback: no Telegram configured -> instant / dry-run calendar flow.

@@ -108,4 +108,9 @@ def create_booking(
         dispatched=result.dispatched,
         dry_run=result.dry_run,
         payload=result.payload,
+        name=booking.name,
+        workshop=booking.workshop,
+        car_model=booking.car_model,
+        date=booking.date,
+        time=booking.time,
     )

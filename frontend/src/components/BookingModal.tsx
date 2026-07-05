@@ -194,7 +194,17 @@ export function BookingModal({
       const reply = await onCheckReply(result.booking_id);
       setLastReply(reply);
       setStatusMessage(reply.message);
-      setResult((prev) => (prev ? { ...prev, status: reply.status } : prev));
+      setResult((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: reply.status,
+              date: reply.proposed_date || prev.date,
+              time: reply.proposed_time || prev.time,
+              workshop: reply.workshop || prev.workshop,
+            }
+          : prev,
+      );
     } finally {
       setChecking(false);
     }
@@ -417,15 +427,15 @@ export function BookingModal({
               <dl className="booking-summary">
                 <div>
                   <dt>Workshop</dt>
-                  <dd>{workshop}</dd>
+                  <dd>{result.workshop || workshop}</dd>
                 </div>
                 <div>
                   <dt>Date</dt>
-                  <dd>{lastReply?.proposed_date || date}</dd>
+                  <dd>{result.date || date}</dd>
                 </div>
                 <div>
                   <dt>Time</dt>
-                  <dd>{lastReply?.proposed_time || time}</dd>
+                  <dd>{result.time || time}</dd>
                 </div>
               </dl>
             ) : null}
@@ -491,8 +501,17 @@ function BookingDiagnostics({
   lastReply,
 }: BookingDiagnosticsProps) {
   const messageId = result?.payload?.telegram_message_id ?? null;
-  const replyReceived = Boolean(lastReply && lastReply.classification !== "none");
   const booked = result?.status === "booked";
+  const failed = result?.status === "failed";
+  // A terminal booked/failed state necessarily means a reply was received and
+  // parsed, even after the modal was reopened and the transient reply is gone.
+  const replyReceived =
+    booked || failed || Boolean(lastReply && lastReply.classification !== "none");
+  const parsedClassification = booked
+    ? "confirmed"
+    : failed
+      ? "unavailable"
+      : (lastReply?.classification ?? "-");
 
   const checks: { label: string; badge: string; detail: string }[] = [
     {
@@ -513,12 +532,12 @@ function BookingDiagnostics({
     {
       label: "Telegram Reply Received",
       badge: mark(replyReceived),
-      detail: lastReply?.message ? lastReply.message : "No reply yet",
+      detail: lastReply?.message ? lastReply.message : booked ? "Confirmed" : "No reply yet",
     },
     {
       label: "Reply Parsed",
       badge: mark(replyReceived),
-      detail: lastReply ? lastReply.classification : "-",
+      detail: parsedClassification,
     },
     {
       label: "Google Calendar Booking",

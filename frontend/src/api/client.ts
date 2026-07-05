@@ -154,6 +154,11 @@ export interface BookingOut {
   dispatched: boolean;
   dry_run: boolean;
   payload: BookingPayload | null;
+  name: string;
+  workshop: string;
+  car_model: string;
+  date: string;
+  time: string;
 }
 
 export interface BookingAvailabilityOut {
@@ -167,6 +172,7 @@ export interface BookingReplyOut {
   booked: boolean;
   proposed_date: string;
   proposed_time: string;
+  workshop: string;
   round: number;
   classification: string;
   message: string;
