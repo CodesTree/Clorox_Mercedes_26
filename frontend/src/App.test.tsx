@@ -56,6 +56,7 @@ function mockFetch(
     placeholderProfile?: boolean;
     calendarError?: boolean;
     advisoryError?: boolean;
+    sellAdvisory?: boolean;
   } = {},
 ) {
   vi.stubGlobal(
@@ -132,6 +133,23 @@ function mockFetch(
       if (path.includes("/advisory/interpret")) {
         if (options.advisoryError) {
           return response({ detail: "Not Found" }, false, 404);
+        }
+        if (options.sellAdvisory) {
+          return response({
+            recommendation: "Sell",
+            summary:
+              "Gemini says sell because the RM 160,000 repair bundle is higher than the five-year depreciation loss.",
+            horizon_years: 5,
+            current_value_rm: 738000,
+            horizon_value_rm: 620000,
+            depreciation_loss_rm: 118000,
+            total_repair_cost_rm: 160000,
+            repairs: [
+              { name: "Transmission rebuild", cost_rm: 110000 },
+              { name: "Cooling system inspection", cost_rm: 50000 },
+            ],
+            llm_used: true,
+          });
         }
         return response({
           recommendation: "Repair and keep",
@@ -295,6 +313,20 @@ test("advisory button opens the keep-versus-sell advisory summary", async () => 
   const advisoryCall = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes("/advisory/interpret"));
   expect(advisoryCall).toBeDefined();
   expect(String(advisoryCall?.[0])).toContain("profile_id=1");
+});
+
+test("advisory tags respond to sell recommendations", async () => {
+  mockFetch({ sellAdvisory: true });
+
+  render(<App />);
+
+  fireEvent.click(await screen.findByRole("button", { name: /Advisory/i }));
+
+  const modal = screen.getByRole("dialog", { name: "AssetIQ advisory" });
+  expect(await within(modal).findByText(/Gemini says sell/i)).toBeInTheDocument();
+  expect(within(modal).getByText("Trade-in path")).toBeInTheDocument();
+  expect(within(modal).getByText("Price trade-in first")).toBeInTheDocument();
+  expect(within(modal).getByText("Review trade-in now")).toBeInTheDocument();
 });
 
 test("advisory modal explains when Gemini insight is unavailable", async () => {

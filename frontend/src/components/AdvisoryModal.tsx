@@ -33,6 +33,40 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function buildAdvisoryTags({
+  recommendation,
+  horizonLabel,
+  repairs,
+  totalRepairCost,
+  depreciationLoss,
+  health,
+  faultCount,
+}: {
+  recommendation: string;
+  horizonLabel: string;
+  repairs: { name: string; cost_rm: number }[];
+  totalRepairCost: number;
+  depreciationLoss: number;
+  health: number;
+  faultCount: number;
+}) {
+  const shouldSell = recommendation.toLowerCase().includes("sell");
+  if (shouldSell) {
+    return ["Trade-in path", "Price trade-in first", "Review trade-in now"];
+  }
+
+  const repairRatio = depreciationLoss > 0 ? totalRepairCost / depreciationLoss : 1;
+  const riskLabel =
+    repairRatio <= 0.3 && health >= 70 && faultCount <= 1
+      ? "Low short-term risk"
+      : repairRatio <= 0.7
+        ? "Moderate repair risk"
+        : "High repair risk";
+  const actionLabel = repairs.length ? "Service first" : faultCount > 0 || health < 70 ? "Inspect first" : "Monitor only";
+
+  return [riskLabel, actionLabel, `Review after ${horizonLabel}`];
+}
+
 export function AdvisoryModal({
   open,
   profile,
@@ -66,6 +100,15 @@ export function AdvisoryModal({
       : "market signal pending";
   const repairs = advisory?.repairs.length ? advisory.repairs : fallbackRepairs;
   const repairNames = repairs.map((repair) => repair.name).join(", ");
+  const advisoryTags = buildAdvisoryTags({
+    recommendation,
+    horizonLabel,
+    repairs,
+    totalRepairCost,
+    depreciationLoss,
+    health,
+    faultCount: faults.length,
+  });
 
   return (
     <div className="modal-backdrop advisory-backdrop" role="presentation">
@@ -202,9 +245,9 @@ export function AdvisoryModal({
               </>
             ) : null}
             <div className="advisory-tags">
-              <span>{recommendation === "Sell" ? "Trade-in path" : "Low short-term risk"}</span>
-              <span>Service first</span>
-              <span>Review after {horizonLabel}</span>
+              {advisoryTags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
             </div>
           </section>
         </div>
