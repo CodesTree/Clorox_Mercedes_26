@@ -1,22 +1,53 @@
-# CODING AGENTS: READ THIS FIRST
+## Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+1. Think Before Coding
+   Don't assume. Don't hide confusion. Surface tradeoffs.
 
-## What you should do — IMPORTANT
+Before implementing:
 
-**Read `assetiq-mercedes-valuation-dashboard/project/AssetIQ Dashboard Options.dc.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+State your assumptions explicitly. If uncertain, ask.
+If multiple interpretations exist, present them - don't pick silently.
+If a simpler approach exists, say so. Push back when warranted.
+If something is unclear, stop. Name what's confusing. Ask. 2. Simplicity First
+Minimum code that solves the problem. Nothing speculative.
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+No features beyond what was asked.
+No abstractions for single-use code.
+No "flexibility" or "configurability" that wasn't requested.
+No error handling for impossible scenarios.
+If you write 200 lines and it could be 50, rewrite it.
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
-## About the design files
+3. Surgical Changes
+   Touch only what you must. Clean up only your own mess.
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+When editing existing code:
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+Don't "improve" adjacent code, comments, or formatting.
+Don't refactor things that aren't broken.
+Match existing style, even if you'd do it differently.
+If you notice unrelated dead code, mention it - don't delete it.
+When your changes create orphans:
 
-## Bundle contents
+Remove imports/variables/functions that YOUR changes made unused.
+Don't remove pre-existing dead code unless asked.
+The test: Every changed line should trace directly to the user's request.
 
-- `assetiq-mercedes-valuation-dashboard/README.md` — this file
-- `assetiq-mercedes-valuation-dashboard/project/` — the `AssetIQ Mercedes Valuation Dashboard` project files (HTML prototypes, assets, components)
+4. Goal-Driven Execution
+   Define success criteria. Loop until verified.
+
+Transform tasks into verifiable goals:
+
+"Add validation" → "Write tests for invalid inputs, then make them pass"
+"Fix the bug" → "Write a test that reproduces it, then make it pass"
+"Refactor X" → "Ensure tests pass before and after"
+For multi-step tasks, state a brief plan:
+
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+   Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
