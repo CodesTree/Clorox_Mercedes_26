@@ -157,7 +157,7 @@ button {
 .panel-heading,
 .rail-title,
 .telemetry-stat span,
-.component-detail__code,
+.component-callout__code,
 .value-header__band,
 .cta-cluster p,
 .chart-years,
@@ -602,7 +602,7 @@ button {
   top: 27%;
 }
 
-.component-detail,
+.component-callout,
 .depreciation-panel,
 .booking-modal {
   border: 1px solid var(--line);
@@ -612,40 +612,65 @@ button {
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(0, 210, 190, 0.02);
 }
 
-.component-detail {
+@keyframes callout-in {
+  from {
+    opacity: 0;
+    margin-top: 8px;
+  }
+  to {
+    opacity: 1;
+    margin-top: 0;
+  }
+}
+
+.component-callout {
   position: absolute;
-  left: 26px;
-  bottom: 26px;
   z-index: 3;
-  width: min(500px, calc(44vw - 40px));
+  width: min(360px, 32vw);
   min-height: 68px;
   display: grid;
   grid-template-columns: 42px 1fr auto;
   align-items: center;
   gap: 14px;
   padding: 13px 16px;
+  animation: callout-in 180ms ease-out;
 }
 
-.component-detail__code {
+.component-callout--top {
+  top: 26%;
+  right: 13%;
+}
+
+.component-callout--left {
+  top: 26%;
+  left: 14%;
+}
+
+.component-callout--lower-right {
+  top: 70%;
+  left: 14%;
+}
+
+.component-callout__code {
   color: var(--accent);
   font-size: 11px;
   font-weight: 800;
 }
 
-.component-detail h2 {
+.component-callout h2 {
   font-size: 17px;
   line-height: 1.1;
   margin-bottom: 3px;
 }
 
-.component-detail p {
+.component-callout p {
   color: var(--text-dim);
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.35;
 }
 
-.component-detail__sub {
+.component-callout__sub {
   margin-top: 2px;
 }
 
@@ -654,7 +679,7 @@ button {
   gap: 3px;
 }
 
-.component-detail__impact {
+.component-callout__impact {
   color: var(--positive);
   font-size: 20px;
   white-space: nowrap;
@@ -1723,7 +1748,7 @@ button {
     .telemetry-rail,
     .component-dock,
     .car-stage,
-    .component-detail,
+    .component-callout,
     .cta-cluster,
   .depreciation-panel,
   .orbit-hint {
@@ -1771,11 +1796,11 @@ button {
     height: 360px;
   }
 
-  .component-detail {
+  .component-callout {
     grid-template-columns: 42px 1fr;
   }
 
-  .component-detail__impact {
+  .component-callout__impact {
     grid-column: 2;
   }
 
@@ -1819,11 +1844,11 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .component-detail {
+  .component-callout {
     grid-template-columns: 1fr;
   }
 
-  .component-detail__impact {
+  .component-callout__impact {
     grid-column: auto;
   }
 

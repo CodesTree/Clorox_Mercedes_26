@@ -21,9 +21,13 @@ export function ComponentDetail({
   const impactClass = component.positive ? "impact-positive" : "impact-negative";
 
   return (
-    <section className="component-detail" aria-label="Selected component detail">
-      <div className="component-detail__code">{component.code}</div>
-      <div className="component-detail__main">
+    <section
+      key={component.id}
+      className={`component-callout component-callout--${component.anchor}`}
+      aria-label="Selected component detail"
+    >
+      <div className="component-callout__code">{component.code}</div>
+      <div className="component-callout__main">
         <h2>{component.label}</h2>
         {selected === "engine" ? (
           <p>
@@ -73,13 +77,13 @@ export function ComponentDetail({
           </p>
         ) : null}
         {selected !== "diagnostics" ? (
-          <p className="component-detail__sub">
+          <p className="component-callout__sub">
             {component.value} - {component.sub}
             {market?.median_rm ? ` - Market median ${formatRm(market.median_rm)}` : ""}
           </p>
         ) : null}
       </div>
-      <strong className={`component-detail__impact ${impactClass}`}>{component.impact}</strong>
+      <strong className={`component-callout__impact ${impactClass}`}>{component.impact}</strong>
     </section>
   );
 }
