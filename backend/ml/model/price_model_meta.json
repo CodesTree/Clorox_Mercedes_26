@@ -1,0 +1,90 @@
+{
+  "model_type": "RandomForestRegressor",
+  "params": {
+    "n_estimators": 200,
+    "min_samples_leaf": 10,
+    "random_state": 42
+  },
+  "features": [
+    "model_class",
+    "year",
+    "mileage",
+    "transmission",
+    "fuel_type",
+    "engine_size",
+    "source_market",
+    "age",
+    "variant",
+    "displacement_cc",
+    "n_cylinders",
+    "n_gears",
+    "top_speed_kmh",
+    "torque_nm",
+    "accel_0_100_s",
+    "boot_l",
+    "engine_config",
+    "aspiration",
+    "gear_type",
+    "front_brake",
+    "rear_brake",
+    "match_level",
+    "battery_soh",
+    "trans_adapt_offset",
+    "estimated_annual_mileage",
+    "dtc_fault_count",
+    "brake_life_pct",
+    "health_score"
+  ],
+  "categorical_low_card": [
+    "model_class",
+    "transmission",
+    "fuel_type",
+    "source_market",
+    "engine_config",
+    "aspiration",
+    "gear_type",
+    "front_brake",
+    "rear_brake",
+    "match_level"
+  ],
+  "categorical_high_card": [
+    "variant"
+  ],
+  "numeric": [
+    "year",
+    "mileage",
+    "engine_size",
+    "age",
+    "displacement_cc",
+    "n_cylinders",
+    "n_gears",
+    "top_speed_kmh",
+    "torque_nm",
+    "accel_0_100_s",
+    "boot_l",
+    "battery_soh",
+    "trans_adapt_offset",
+    "estimated_annual_mileage",
+    "dtc_fault_count",
+    "brake_life_pct",
+    "health_score"
+  ],
+  "target": "price_rm",
+  "target_transform": "log1p",
+  "interval": {
+    "method": "per_tree_std_calibrated",
+    "k": 1.6737114157981754,
+    "target_coverage": 0.8,
+    "empirical_test_coverage": 0.789
+  },
+  "reference_year": 2026,
+  "metrics_holdout": {
+    "r2": 0.8251,
+    "mape_pct": 16.57,
+    "mae_rm": 19921,
+    "rmse_rm": 48680
+  },
+  "sklearn_version": "1.5.2",
+  "trained_rows": 30587,
+  "created_at": "2026-07-05T06:27:47"
+}

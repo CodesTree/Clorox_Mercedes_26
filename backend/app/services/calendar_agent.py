@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from ..config import get_settings
 from .dispatcher import BookingRecord
+from .google_calendar import GoogleCalendarService
 
 
 logger = logging.getLogger(__name__)
@@ -73,34 +74,9 @@ def _dry_run_booking(booking: BookingRecord) -> dict:
     return {"status": "dry_run", "calendar_event_id": None, "dry_run": True}
 
 
-def _create_calendar_service(settings):
-    try:
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-    except Exception as exc:  # pragma: no cover - exercised via mocks in tests
-        raise RuntimeError("Google Calendar SDK unavailable") from exc
-
-    scopes = ["https://www.googleapis.com/auth/calendar.events"]
-    credentials_json = settings.google_calendar_credentials_json.strip()
-    if credentials_json.startswith("{"):
-        credentials = service_account.Credentials.from_service_account_info(
-            json.loads(credentials_json), scopes=scopes
-        )
-    else:
-        credentials = service_account.Credentials.from_service_account_file(
-            credentials_json, scopes=scopes
-        )
-
-    return build("calendar", "v3", credentials=credentials, cache_discovery=False)
-
-
 def _create_calendar_event(payload: dict, settings) -> dict:
-    service = _create_calendar_service(settings)
-    response = (
-        service.events()
-        .insert(calendarId=settings.google_calendar_id, body=payload)
-        .execute()
-    )
+    service = GoogleCalendarService(settings=settings)
+    response = service.insert_event(settings.google_calendar_id, payload)
     event_id = response.get("id") if isinstance(response, dict) else None
     if not event_id:
         raise RuntimeError("Calendar API response missing event id")

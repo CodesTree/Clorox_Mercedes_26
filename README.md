@@ -21,6 +21,9 @@ Design docs: `docs/superpowers/specs/` (start with the overview).
 Run from the **repo root** so `./data/` and `.env` resolve correctly.
 API docs: http://localhost:8000/docs . Contract: http://localhost:8000/openapi.json
 
+Live scraper browser mode uses SeleniumBase UC mode with Chrome. `backend/requirements.txt`
+includes SeleniumBase; the host also needs a compatible Chrome/Chromium browser available.
+
 ## Frontend (React + Three.js)
 
     cd frontend
