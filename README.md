@@ -21,6 +21,23 @@ Design docs: `docs/superpowers/specs/` (start with the overview).
 Run from the **repo root** so `./data/` and `.env` resolve correctly.
 API docs: http://localhost:8000/docs . Contract: http://localhost:8000/openapi.json
 
+### Google Calendar booking setup
+
+Inspection bookings use a shared Google Calendar when service-account credentials are configured.
+Do not commit the service account JSON or `.env`; both are local secrets.
+
+1. Get the shared service account JSON from the team through a private channel.
+2. Save it locally as `backend/secrets/google_sa.json`.
+3. Copy `.env.example` to `backend/.env` if you have not already.
+4. Set the Calendar values in `backend/.env`:
+
+       GOOGLE_CALENDAR_CREDENTIALS_JSON=./secrets/google_sa.json
+       GOOGLE_CALENDAR_ID=<shared_calendar_id>
+       GOOGLE_CALENDAR_TIMEZONE=Asia/Kuala_Lumpur
+
+5. In Google Calendar, share the calendar with the JSON file's `client_email` and allow it to make changes to events.
+6. Restart the backend. A real Calendar booking returns `dry_run: false`; missing credentials return `dry_run: true` with `payload.calendar_error`.
+
 ## Frontend (React + Three.js)
 
     cd frontend

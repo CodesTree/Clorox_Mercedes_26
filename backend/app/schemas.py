@@ -21,6 +21,7 @@ class VehicleProfileIn(BaseModel):
     transmission: str
     fuel_type: str
     engine_size: float = Field(ge=0)
+    original_purchase_price_rm: int | None = Field(default=None, ge=0)
     mpg: float | None = None
     tax: float | None = None
     service_history_count: int | None = Field(default=None, ge=0)

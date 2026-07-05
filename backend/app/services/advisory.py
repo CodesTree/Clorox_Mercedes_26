@@ -16,16 +16,17 @@ DEFAULT_REPAIR_BUNDLE = [
 def build_advisory_interpretation(
     profile: Any,
     predictor: Any,
+    summary_client: Any | None = None,
     repairs: list[RepairItemOut] | None = None,
     horizon_years: int = ADVISORY_HORIZON_YEARS,
 ) -> AdvisoryInterpretOut:
     repair_items = repairs if repairs is not None else DEFAULT_REPAIR_BUNDLE
     total_repair_cost = sum(item.cost_rm for item in repair_items)
 
-    prediction = predictor.predict(profile)
     depreciation = predictor.depreciation(profile, horizon_years)
+    current_point = depreciation.points[0]
     horizon_point = depreciation.points[-1]
-    current_value = prediction.value_rm
+    current_value = current_point.value_rm
     horizon_value = horizon_point.value_rm
     depreciation_loss = max(0, current_value - horizon_value)
 
@@ -36,6 +37,22 @@ def build_advisory_interpretation(
         depreciation_loss=depreciation_loss,
         horizon_years=horizon_years,
     )
+    llm_used = False
+    if summary_client is not None:
+        llm_summary = summary_client.advisory_summary(
+            {
+                "recommendation": recommendation,
+                "current_value_rm": current_value,
+                "five_year_value_rm": horizon_value,
+                "depreciation_loss_rm": depreciation_loss,
+                "total_repair_cost_rm": total_repair_cost,
+                "repairs": [item.name for item in repair_items],
+                "horizon_years": horizon_years,
+            }
+        )
+        if llm_summary:
+            summary = llm_summary
+            llm_used = True
 
     return AdvisoryInterpretOut(
         recommendation=recommendation,
@@ -46,7 +63,7 @@ def build_advisory_interpretation(
         depreciation_loss_rm=depreciation_loss,
         total_repair_cost_rm=total_repair_cost,
         repairs=repair_items,
-        llm_used=False,
+        llm_used=llm_used,
     )
 
 

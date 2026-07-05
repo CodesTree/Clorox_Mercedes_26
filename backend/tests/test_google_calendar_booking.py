@@ -94,6 +94,29 @@ def test_booking_falls_back_to_dry_run_when_calendar_api_fails(monkeypatch):
     assert "calendar network failed" in body["payload"]["calendar_error"]
 
 
+def test_booking_reports_missing_service_account_file(monkeypatch, tmp_path):
+    missing_credentials = tmp_path / "missing-google-sa.json"
+    service = GoogleCalendarService(
+        settings=Settings(
+            google_calendar_credentials_json=str(missing_credentials),
+            google_calendar_id="primary",
+            google_calendar_timezone="Asia/Kuala_Lumpur",
+        )
+    )
+    monkeypatch.setattr(booking, "booking_dispatcher", SharedCalendarDispatcher(service))
+
+    with TestClient(app) as client:
+        resp = client.post("/booking", json=BOOKING_PAYLOAD)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "dry_run"
+    assert body["dispatched"] is False
+    assert body["dry_run"] is True
+    assert body["payload"]["calendar_mode"] == "shared"
+    assert "Google Calendar credentials file not found" in body["payload"]["calendar_error"]
+
+
 def test_booking_creates_shared_calendar_event_when_configured(monkeypatch):
     inserted_events = []
 

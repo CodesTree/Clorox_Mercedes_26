@@ -50,9 +50,11 @@ class SharedCalendarDispatcher:
         self.fallback = fallback or DryRunDispatcher()
 
     def dispatch(self, booking: orm.Booking) -> DispatchResult:
-        if not self.calendar_service.configured:
+        config_error = self.calendar_service.configuration_error()
+        if config_error is not None:
             result = self.fallback.dispatch(booking)
             result.payload["calendar_mode"] = "shared"
+            result.payload["calendar_error"] = config_error
             return result
 
         try:
