@@ -75,6 +75,9 @@ declare global {
   }
 }
 
+// Flip to true to surface the developer diagnostics panel below the voice bar.
+const SHOW_DEV_DIAGNOSTICS = false;
+
 const wakePhrase = "hey assetiq";
 const greeting = "Hi, what can I help?";
 const demoQuestion = "Should I sell my car now?";
@@ -733,31 +736,33 @@ export function VoiceAdvisor({ pendingVoiceAction, onPendingVoiceActionHandled }
           {voiceStatusMessage ? <small>{voiceStatusMessage}</small> : null}
         </div>
       ) : null}
-      <div className="voice-advisor__debug">
-        {voiceState === "waiting_for_followup" && debugInfo.recognitionState === "listening" ? (
-          <div>Listening for follow-up...</div>
-        ) : null}
-        {voiceState === "waiting_for_question" && debugInfo.recognitionState === "listening" ? (
-          <div>Listening for your question...</div>
-        ) : null}
-        <div>voice: {voiceState}</div>
-        <div>lifecycle: {debugInfo.lifecycle}</div>
-        <div>state: {debugInfo.recognitionState}</div>
-        <div>mode: {debugInfo.mode}</div>
-        <div>
-          question retry: {debugInfo.questionRetry}/{maxQuestionListenRetries}
+      {SHOW_DEV_DIAGNOSTICS ? (
+        <div className="voice-advisor__debug">
+          {voiceState === "waiting_for_followup" && debugInfo.recognitionState === "listening" ? (
+            <div>Listening for follow-up...</div>
+          ) : null}
+          {voiceState === "waiting_for_question" && debugInfo.recognitionState === "listening" ? (
+            <div>Listening for your question...</div>
+          ) : null}
+          <div>voice: {voiceState}</div>
+          <div>lifecycle: {debugInfo.lifecycle}</div>
+          <div>state: {debugInfo.recognitionState}</div>
+          <div>mode: {debugInfo.mode}</div>
+          <div>
+            question retry: {debugInfo.questionRetry}/{maxQuestionListenRetries}
+          </div>
+          <div>last event: {debugInfo.lastEvent}</div>
+          <div>heard: "{debugInfo.rawTranscript}"</div>
+          <div>normalized: "{debugInfo.normalized}"</div>
+          <div>matched: {debugInfo.matched ? "yes" : "no"}</div>
+          <div>last reply: "{debugInfo.lastReply}"</div>
+          <div>audio_base64 length: {debugInfo.audioBase64Length}</div>
+          <div>tts_provider: {debugInfo.ttsProvider}</div>
+          <div>fallback_reason: {debugInfo.fallbackReason}</div>
+          <div>playback path: {debugInfo.playbackPath}</div>
+          <div>playback error: {debugInfo.playbackError}</div>
         </div>
-        <div>last event: {debugInfo.lastEvent}</div>
-        <div>heard: "{debugInfo.rawTranscript}"</div>
-        <div>normalized: "{debugInfo.normalized}"</div>
-        <div>matched: {debugInfo.matched ? "yes" : "no"}</div>
-        <div>last reply: "{debugInfo.lastReply}"</div>
-        <div>audio_base64 length: {debugInfo.audioBase64Length}</div>
-        <div>tts_provider: {debugInfo.ttsProvider}</div>
-        <div>fallback_reason: {debugInfo.fallbackReason}</div>
-        <div>playback path: {debugInfo.playbackPath}</div>
-        <div>playback error: {debugInfo.playbackError}</div>
-      </div>
+      ) : null}
     </>
   );
 }
