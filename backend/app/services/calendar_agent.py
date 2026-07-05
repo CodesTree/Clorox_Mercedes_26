@@ -1,212 +1,196 @@
+"""Calendar reasoning for the booking agent.
+
+- classify_reply: interpret the workshop's Telegram reply (Gemini, with a
+  deterministic keyword fallback).
+- find_next_available_slot: pick the next free working-hours slot from Google
+  Calendar FreeBusy (with a deterministic fallback).
+- create_calendar_event: write the confirmed event via the service account.
+"""
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
+import re
+from datetime import datetime, timedelta
+from typing import Literal
 
-from ..config import get_settings
-from .dispatcher import BookingRecord
-from .google_calendar import GoogleCalendarService
-
+from app import orm
+from app.config import get_settings
+from app.services.google_calendar import (
+    WORKING_END_HOUR,
+    WORKING_START_HOUR,
+    GoogleCalendarService,
+    google_calendar_service,
+)
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL_ID = "gemini-2.5-flash"
-GEMINI_MODEL_FALLBACKS = (
-    GEMINI_MODEL_ID,
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
+Intent = Literal["confirmed", "unavailable", "unclear"]
+
+GEMINI_MODEL_FALLBACKS = ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
+
+MAX_SEARCH_DAYS = 14
+
+_UNAVAILABLE_PHRASES = (
+    "not available",
+    "no slot",
+    "fully booked",
+    "another time",
+    "different time",
+    "can not",
 )
-_BOOKING_FIELDS = ("name", "workshop", "car_model", "purpose", "date", "time")
+_UNAVAILABLE_TOKENS = {
+    "unavailable",
+    "taken",
+    "full",
+    "busy",
+    "cannot",
+    "cant",
+    "reschedule",
+    "unfortunately",
+    "no",
+}
+_CONFIRM_TOKENS = {
+    "confirm",
+    "confirmed",
+    "yes",
+    "ok",
+    "okay",
+    "approved",
+    "available",
+    "book",
+    "booked",
+    "sure",
+    "great",
+}
 
 
-def build_event_payload(booking: BookingRecord) -> dict:
-    kuala_lumpur_tz = timezone(timedelta(hours=8), name="Asia/Kuala_Lumpur")
-    start = datetime.strptime(
-        f"{booking.date} {booking.time}", "%Y-%m-%d %H:%M"
-    ).replace(tzinfo=kuala_lumpur_tz)
-    end = start + timedelta(hours=1)
+# --- reply classification ----------------------------------------------------
 
-    return {
-        "summary": f"Mercedes Inspection — {booking.car_model}",
-        "description": f"Purpose: {booking.purpose}\nName: {booking.name}",
-        "location": booking.workshop,
-        "start": {
-            "dateTime": start.isoformat(),
-            "timeZone": "Asia/Kuala_Lumpur",
-        },
-        "end": {
-            "dateTime": end.isoformat(),
-            "timeZone": "Asia/Kuala_Lumpur",
-        },
-        "reminders": {
-            "useDefault": False,
-            "overrides": [
-                {
-                    "method": "email",
-                    "minutes": 60,
-                }
-            ],
-        },
-    }
+def _keyword_classify(text: str) -> Intent:
+    lowered = text.strip().casefold()
+    if not lowered:
+        return "unclear"
+
+    if any(phrase in lowered for phrase in _UNAVAILABLE_PHRASES):
+        return "unavailable"
+
+    tokens = set(re.findall(r"[a-z']+", lowered.replace("'", "")))
+    if tokens & _UNAVAILABLE_TOKENS:
+        return "unavailable"
+    if tokens & _CONFIRM_TOKENS:
+        return "confirmed"
+    return "unclear"
 
 
-def _booking_namespace(booking: BookingRecord, overrides: dict[str, str] | None = None) -> SimpleNamespace:
-    data = {field: getattr(booking, field) for field in _BOOKING_FIELDS}
-    if overrides:
-        data.update(overrides)
-    return SimpleNamespace(**data)
-
-
-def _setting_is_configured(settings, field_name: str) -> bool:
-    value = getattr(settings, field_name, "")
-    if field_name not in getattr(settings, "model_fields_set", set()):
-        return False
-    if isinstance(value, str):
-        return bool(value.strip())
-    return bool(value)
-
-
-def _dry_run_booking(booking: BookingRecord) -> dict:
-    payload = build_event_payload(booking)
-    logger.info("Calendar dry-run payload: %s", payload)
-    return {"status": "dry_run", "calendar_event_id": None, "dry_run": True}
-
-
-def _create_calendar_event(payload: dict, settings) -> dict:
-    service = GoogleCalendarService(settings=settings)
-    response = service.insert_event(settings.google_calendar_id, payload)
-    event_id = response.get("id") if isinstance(response, dict) else None
-    if not event_id:
-        raise RuntimeError("Calendar API response missing event id")
-
-    return {"status": "booked", "calendar_event_id": str(event_id), "dry_run": False}
-
-
-def _clean_json_payload(text: str) -> dict:
-    cleaned = text.strip()
+def _parse_intent(raw: str) -> Intent | None:
+    cleaned = raw.strip()
     if cleaned.startswith("```"):
-        lines = cleaned.splitlines()
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        cleaned = "\n".join(lines).strip()
+        cleaned = "\n".join(
+            line for line in cleaned.splitlines() if not line.startswith("```")
+        ).strip()
 
-    return json.loads(cleaned)
+    intent = ""
+    try:
+        data = json.loads(cleaned)
+        intent = str(data.get("intent", "")).strip().lower()
+    except (json.JSONDecodeError, AttributeError):
+        intent = cleaned.lower()
 
-
-def _extract_fields_from_response(response_text: str) -> dict | None:
-    if not response_text:
-        return None
-
-    payload = _clean_json_payload(response_text)
-    if payload.get("ambiguous") is True:
-        return None
-
-    required_fields = {"workshop", "car_model", "purpose", "date", "time"}
-    if not required_fields.issubset(payload):
-        return None
-
-    return {field: str(payload[field]) for field in required_fields}
+    if intent in ("confirmed", "unavailable", "unclear"):
+        return intent  # type: ignore[return-value]
+    return None
 
 
-def _generate_gemini_response_text(prompt: str, settings) -> str:
+def _gemini_classify(text: str, booking: orm.Booking, settings) -> Intent | None:
     try:
         from google import genai
     except ImportError:
-        genai = None
-
-    if genai is not None:
-        client = genai.Client(api_key=settings.gemini_api_key)
-        last_error: Exception | None = None
-        for model_id in GEMINI_MODEL_FALLBACKS:
-            try:
-                response = client.models.generate_content(model=model_id, contents=prompt)
-                return getattr(response, "text", None) or ""
-            except Exception as exc:  # pragma: no cover - network/client failures are environment-specific
-                last_error = exc
-        if last_error is not None:
-            raise last_error
+        return None
 
     try:
-        from google import generativeai
-    except ImportError as exc:  # pragma: no cover - exercised via mocks in tests
-        if genai is None:
-            raise RuntimeError("google-genai SDK unavailable. Run 'pip install google-genai'") from exc
-        raise
+        client = genai.Client(api_key=settings.gemini_api_key)
+    except Exception:
+        logger.exception("Gemini client init failed")
+        return None
 
-    generativeai.configure(api_key=settings.gemini_api_key)
-    last_error = None
+    prompt = (
+        "You classify a car workshop's reply to an appointment proposal.\n"
+        'Return strict JSON only: {"intent": "confirmed" | "unavailable" | "unclear"}.\n'
+        "confirmed = the proposed slot is accepted/booked.\n"
+        "unavailable = the proposed slot cannot be honoured / another time is needed.\n"
+        "unclear = anything else.\n\n"
+        f"Proposed date {booking.date} at {booking.time}.\n"
+        f"Reply: {text}"
+    )
+
+    last_error: Exception | None = None
     for model_id in GEMINI_MODEL_FALLBACKS:
         try:
-            model = generativeai.GenerativeModel(model_id)
-            response = model.generate_content(prompt)
-            return getattr(response, "text", None) or ""
-        except Exception as exc:  # pragma: no cover - network/client failures are environment-specific
+            response = client.models.generate_content(model=model_id, contents=prompt)
+            intent = _parse_intent(getattr(response, "text", None) or "")
+            if intent is not None:
+                return intent
+        except Exception as exc:  # network/model errors are environment-specific
             last_error = exc
 
     if last_error is not None:
-        raise last_error
-
-    return ""
-
-
-def _extract_booking_via_gemini(booking: BookingRecord, settings) -> dict | None:
-    confirmation_text = str(getattr(booking, "confirmation_text", "") or "")
-    booking_context = json.dumps(
-        {field: getattr(booking, field) for field in _BOOKING_FIELDS},
-        ensure_ascii=False,
-    )
-    prompt = (
-        "System: extract booking intent as JSON only. "
-        'Return {"workshop", "car_model", "purpose", "date", "time", "ambiguous"}. '
-        'Set "ambiguous": true if the confirmation text does not clearly match the booking.\n\n'
-        f"Confirmation text: {confirmation_text}\n\n"
-        f"Structured booking fields: {booking_context}"
-    )
-
-    response_text = _generate_gemini_response_text(prompt, settings)
-    return _extract_fields_from_response(response_text)
+        logger.warning("Gemini classification failed: %s", last_error)
+    return None
 
 
-def _deterministic_resolve(booking: BookingRecord, settings) -> dict:
-    try:
-        payload = build_event_payload(booking)
-        return _create_calendar_event(payload, settings)
-    except Exception:
-        logger.exception("Deterministic calendar resolution failed; falling back to dry-run")
-        return _dry_run_booking(booking)
-
-
-def resolve_booking(booking: BookingRecord) -> dict:
+def classify_reply(text: str, booking: orm.Booking) -> Intent:
     settings = get_settings()
+    if settings.gemini_api_key.strip():
+        intent = _gemini_classify(text, booking, settings)
+        if intent is not None:
+            return intent
+    return _keyword_classify(text)
 
-    has_google = _setting_is_configured(settings, "google_calendar_credentials_json") and _setting_is_configured(
-        settings, "google_calendar_id"
-    )
-    has_gemini = _setting_is_configured(settings, "gemini_api_key")
 
-    if not has_google:
-        return _dry_run_booking(booking)
+# --- availability search -----------------------------------------------------
 
-    if not has_gemini:
-        return _deterministic_resolve(booking, settings)
+def _deterministic_next(current: datetime) -> tuple[str, str]:
+    candidate = current + timedelta(hours=1)
+    if candidate.hour < WORKING_START_HOUR:
+        candidate = candidate.replace(hour=WORKING_START_HOUR, minute=0)
+    if candidate.hour >= WORKING_END_HOUR:
+        candidate = (candidate + timedelta(days=1)).replace(
+            hour=WORKING_START_HOUR, minute=0
+        )
+    return candidate.date().isoformat(), candidate.strftime("%H:%M")
+
+
+def find_next_available_slot(
+    after_date: str,
+    after_time: str,
+    service: GoogleCalendarService | None = None,
+) -> tuple[str, str]:
+    service = service or google_calendar_service
+    tzinfo = service._resolve_tzinfo()
 
     try:
-        extracted = _extract_booking_via_gemini(booking, settings)
-    except Exception:
-        logger.exception("Gemini booking extraction failed; falling back to deterministic resolution")
-        return _deterministic_resolve(booking, settings)
+        current = datetime.fromisoformat(f"{after_date}T{after_time}:00").replace(
+            tzinfo=tzinfo
+        )
+    except ValueError:
+        current = datetime.now(tzinfo)
 
-    if extracted is None:
-        return _deterministic_resolve(booking, settings)
+    for day_offset in range(MAX_SEARCH_DAYS):
+        day = (current + timedelta(days=day_offset)).date().isoformat()
+        for slot in service.free_slots_for_date(day):
+            slot_dt = datetime.fromisoformat(f"{day}T{slot}:00").replace(tzinfo=tzinfo)
+            if slot_dt > current:
+                return day, slot
 
-    gemini_booking = _booking_namespace(booking, extracted)
-    try:
-        payload = build_event_payload(gemini_booking)
-        return _create_calendar_event(payload, settings)
-    except Exception:
-        logger.exception("Gemini calendar creation failed; falling back to deterministic resolution")
-        return _deterministic_resolve(booking, settings)
+    return _deterministic_next(current)
+
+
+# --- event creation ----------------------------------------------------------
+
+def create_calendar_event(
+    booking: orm.Booking, service: GoogleCalendarService | None = None
+) -> str:
+    service = service or google_calendar_service
+    result = service.create_booking_event(booking)
+    return result.event_id

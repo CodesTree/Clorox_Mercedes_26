@@ -24,21 +24,32 @@ def init_db() -> None:
         db_path = Path(_settings.database_url.removeprefix("sqlite:///"))
         db_path.parent.mkdir(parents=True, exist_ok=True)
     orm.Base.metadata.create_all(bind=engine)
-    if _settings.database_url.startswith("sqlite"):
-        _ensure_sqlite_compat_columns()
+    _ensure_booking_columns()
 
 
-def _ensure_sqlite_compat_columns() -> None:
+def _ensure_booking_columns() -> None:
+    """Idempotently add columns introduced after the demo DB was committed.
+
+    `create_all` never ALTERs an existing table, so a checked-in SQLite file
+    would otherwise be missing newer columns. Safe to run on every startup.
+    """
+    from sqlalchemy import inspect, text
+
     inspector = inspect(engine)
-    if "vehicle_profiles" not in inspector.get_table_names():
+    try:
+        columns = {col["name"] for col in inspector.get_columns("bookings")}
+    except Exception:
         return
 
-    profile_cols = {c["name"] for c in inspector.get_columns("vehicle_profiles")}
-    if "original_purchase_price_rm" not in profile_cols:
+    if "negotiation_round" not in columns:
         with engine.begin() as conn:
             conn.execute(
-                text("ALTER TABLE vehicle_profiles ADD COLUMN original_purchase_price_rm INTEGER")
+                text("ALTER TABLE bookings ADD COLUMN negotiation_round INTEGER DEFAULT 0")
             )
+
+    if "telegram_update_id" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN telegram_update_id INTEGER"))
 
 
 def get_session():

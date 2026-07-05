@@ -10,6 +10,7 @@ playwright==1.49.1
 seleniumbase==4.50.5
 google-api-python-client==2.159.0
 google-auth==2.37.0
+google-genai==1.9.0    # Gemini reply-intent classification (keyword fallback if absent)
 tzdata==2025.1
 
 # ML price model (03_modeling.ipynb + /predict/obd)

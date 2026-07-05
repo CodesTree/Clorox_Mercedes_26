@@ -1,232 +1,191 @@
+"""Thin Telegram I/O for the booking agent.
+
+Outbound: send the appointment proposal to the configured chat.
+Inbound: pull the latest text reply from that chat (manual, on-demand poll).
+
+All functions degrade gracefully: when Telegram is not configured the caller is
+expected to fall back to dry-run behaviour (see booking_agent).
+"""
 from __future__ import annotations
 
 import logging
-from types import SimpleNamespace
-from typing import Optional
+from datetime import datetime
 
 import httpx
-from fastapi import BackgroundTasks
-from sqlalchemy.orm import Session
 
-from ..db import SessionLocal
-from ..orm import Booking
-from ..config import get_settings
-from .dispatcher import BookingDispatcher, BookingRecord, DispatchResult
-from .calendar_agent import resolve_booking
+from app import orm
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-CONFIRMATION_KEYWORDS = {"confirmed", "approved", "yes", "ok", "okay"}
-
-# TODO: persist offset in DB so restarts don't reprocess or miss updates
-# FIX: renamed to consistent module-level state variable
-_POLL_SINCE_UPDATE_ID: int = 0
+_API_ROOT = "https://api.telegram.org/bot{token}/{method}"
 
 
-def format_booking_message(booking: BookingRecord) -> str:
+def is_configured() -> bool:
+    settings = get_settings()
+    return bool(settings.telegram_bot_token.strip()) and bool(
+        str(settings.telegram_chat_id).strip()
+    )
+
+
+def booking_reference(booking: orm.Booking) -> str:
+    return f"BKG-{booking.id}"
+
+
+def format_booking_message(booking: orm.Booking) -> str:
+    """Exact outbound payload shape agreed for the demo."""
+    reference = (
+        f"Booking ref: {booking_reference(booking)}\n"
+        if getattr(booking, "id", None)
+        else ""
+    )
     return (
+        f"{reference}"
         f"Name: {booking.name}\n"
         f"Nearest Mercedes Workshop: {booking.workshop}\n"
         f"Car model: {booking.car_model}\n"
         f"Purpose: {booking.purpose}\n"
         f"Date: {booking.date}\n"
-        f"Time: {booking.time}"
+        f"Time: {booking.time}\n"
+        "\nReply CONFIRM to book, or tell us if the slot is unavailable."
     )
-
-
-def is_confirmation(text: str) -> bool:
-    return text.strip().casefold() in CONFIRMATION_KEYWORDS
-
-
-def poll_for_confirmation(chat_id: str, since_update_id: int) -> Optional[dict]:
-    global _POLL_SINCE_UPDATE_ID  # FIX: consistent naming
-
-    settings = get_settings()
-    if not settings.telegram_bot_token or not settings.telegram_chat_id:
-        return None
-
-    normalized_chat_id = str(chat_id)
-    if normalized_chat_id != str(settings.telegram_chat_id):
-        return None
-
-    effective_since_update_id = max(since_update_id, _POLL_SINCE_UPDATE_ID)
-
-    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/getUpdates"
-
-    response = httpx.get(
-        url,
-        params={"offset": effective_since_update_id + 1, "timeout": 2},
-        timeout=5.0,
-    )
-    response.raise_for_status()
-
-    payload = response.json()
-    updates = payload.get("result", []) if isinstance(payload, dict) else []
-
-    for update in updates:
-        if not isinstance(update, dict):
-            continue
-
-        update_id = update.get("update_id")
-        if isinstance(update_id, int):
-            _POLL_SINCE_UPDATE_ID = max(_POLL_SINCE_UPDATE_ID, update_id)  # FIX
-
-        message = update.get("message")
-        if not isinstance(message, dict):
-            continue
-
-        message_chat = message.get("chat")
-        message_chat_id = None
-
-        if isinstance(message_chat, dict) and message_chat.get("id") is not None:
-            message_chat_id = str(message_chat.get("id"))
-
-        if message_chat_id != normalized_chat_id:
-            continue
-
-        text = message.get("text")
-        if isinstance(text, str) and is_confirmation(text):
-            return message
-
-    return None
-
-
-def schedule_confirmation_poll(
-    background_tasks: BackgroundTasks, chat_id: str, since_update_id: int
-) -> None:
-    """FastAPI background task polling (hackathon-safe; not production-grade)."""
-
-    background_tasks.add_task(poll_for_confirmation, chat_id, since_update_id)
-
-
-def _process_confirmation(booking_id: int, chat_id: str, since_update_id: int) -> None:
-    session = SessionLocal()
-    try:
-        booking = session.get(Booking, booking_id)
-        if booking is None:
-            return
-
-        confirmation = poll_for_confirmation(chat_id, since_update_id)
-        if not confirmation:
-            return
-
-        booking.status = "confirmed"
-        session.add(booking)
-        session.commit()
-
-        result = resolve_booking(booking)
-
-        booking.status = str(result.get("status", booking.status))
-        booking.calendar_event_id = result.get("calendar_event_id")
-
-        session.add(booking)
-        session.commit()
-
-    except Exception:
-        session.rollback()
-        logger.exception("Confirmation processing failed")
-    finally:
-        session.close()
 
 
 def send_message(text: str) -> dict:
     settings = get_settings()
-
-    if not settings.telegram_bot_token or not settings.telegram_chat_id:
+    if not is_configured():
         raise RuntimeError("Telegram credentials are not configured")
 
-    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
-
+    url = _API_ROOT.format(token=settings.telegram_bot_token, method="sendMessage")
     response = httpx.post(
         url,
         json={"chat_id": settings.telegram_chat_id, "text": text},
         timeout=10.0,
     )
     response.raise_for_status()
-
     return response.json()
 
 
-class TelegramDispatcher(BookingDispatcher):
-    def __init__(self, session: Session, background_tasks: BackgroundTasks | None = None):
-        self.session = session
-        self.background_tasks = background_tasks
+def get_webhook_info() -> dict | None:
+    settings = get_settings()
+    if not is_configured():
+        return None
 
-    def dispatch(self, booking: BookingRecord) -> DispatchResult:
-        settings = get_settings()
+    url = _API_ROOT.format(token=settings.telegram_bot_token, method="getWebhookInfo")
+    try:
+        response = httpx.get(url, timeout=10.0)
+        response.raise_for_status()
+        return response.json()
+    except Exception:
+        logger.exception("Telegram getWebhookInfo failed")
+        return None
 
-        # =========================
-        # DRY RUN (no Telegram config)
-        # =========================
-        if not settings.telegram_bot_token or not settings.telegram_chat_id:
-            booking.status = "dry_run"
-            booking.telegram_message_id = None
-            booking.calendar_event_id = None
 
-            self.session.add(booking)
-            self.session.commit()
+def fetch_latest_reply(
+    since_dt: datetime | None = None,
+    *,
+    offset: int | None = None,
+    reply_to_message_id: str | None = None,
+    booking_reference: str | None = None,
+    allow_unthreaded: bool = True,
+) -> dict | None:
+    """Return the most recent text message from the configured chat.
 
-            return SimpleNamespace(
-                status="dry_run",
-                telegram_message_id=None,
-                calendar_event_id=None,
-                dry_run=True,
-            )
+    Only messages at/after `since_dt` are considered, so each negotiation round
+    ignores replies to earlier proposals. `offset` is forwarded to Telegram so
+    callers can process each update once. When a message id or booking reference
+    is supplied, replies are matched to that booking; plain chat replies are only
+    accepted when `allow_unthreaded` is true.
+    """
+    settings = get_settings()
+    if not is_configured():
+        return None
 
-        # =========================
-        # SEND TELEGRAM MESSAGE
-        # =========================
-        try:
-            message = format_booking_message(booking)
-            response = send_message(message)
+    url = _API_ROOT.format(token=settings.telegram_bot_token, method="getUpdates")
+    params = {"timeout": 0}
+    if offset is not None:
+        params["offset"] = offset
 
-        except Exception:
-            # FIX: graceful degradation required by spec
-            booking.status = "dry_run"
-            booking.telegram_message_id = None
-            booking.calendar_event_id = None
+    try:
+        response = httpx.get(url, params=params, timeout=10.0)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        logger.exception("Telegram getUpdates failed")
+        return None
 
-            self.session.add(booking)
-            self.session.commit()
+    logger.debug("Telegram getUpdates payload: %s", payload)
+    updates = payload.get("result", []) if isinstance(payload, dict) else []
+    chat_id = str(settings.telegram_chat_id)
+    # Telegram message dates are whole seconds; DB timestamps may include
+    # microseconds, so compare at second precision to avoid dropping a valid
+    # immediate reply from the same second as booking.updated_at.
+    since_ts = int(since_dt.timestamp()) if since_dt is not None else None
 
-            logger.exception("Telegram send failed; falling back to dry-run")
+    latest: dict | None = None
+    latest_ts = -1.0
+    for update in updates:
+        logger.debug("Telegram update: %s", update)
+        if not isinstance(update, dict):
+            logger.debug("Skipping Telegram update: not an object")
+            continue
 
-            return SimpleNamespace(
-                status="dry_run",
-                telegram_message_id=None,
-                calendar_event_id=None,
-                dry_run=True,
-            )
+        update_id = update.get("update_id")
+        message = update.get("message")
+        if not isinstance(message, dict):
+            logger.debug("Skipping Telegram update %s: no message", update_id)
+            continue
 
-        message_id = None
-        if isinstance(response, dict):
-            result = response.get("result")
-            if isinstance(result, dict):
-                message_id = str(result.get("message_id"))
+        logger.debug("Telegram message: %s", message)
+        chat = message.get("chat")
+        if not isinstance(chat, dict) or str(chat.get("id")) != chat_id:
+            logger.debug("Skipping Telegram update %s: chat mismatch", update_id)
+            continue
 
-        # =========================
-        # UPDATE DB → SENT
-        # =========================
-        booking.status = "sent"
-        booking.telegram_message_id = message_id
+        text = message.get("text")
+        if not isinstance(text, str) or not text.strip():
+            logger.debug("Skipping Telegram update %s: empty text", update_id)
+            continue
 
-        self.session.add(booking)
-        self.session.commit()
+        msg_ts = int(float(message.get("date", 0) or 0))
+        if since_ts is not None and msg_ts < since_ts:
+            logger.debug("Skipping Telegram update %s: before since_dt", update_id)
+            continue
 
-        # =========================
-        # BACKGROUND CONFIRMATION POLL
-        # =========================
-        if self.background_tasks is not None:
-            self.background_tasks.add_task(
-                _process_confirmation,
-                booking.id,
-                str(settings.telegram_chat_id),
-                _POLL_SINCE_UPDATE_ID,
-            )
+        if not _matches_booking_reply(
+            message,
+            text=text,
+            reply_to_message_id=reply_to_message_id,
+            booking_reference=booking_reference,
+            allow_unthreaded=allow_unthreaded,
+        ):
+            logger.debug("Skipping Telegram update %s: booking mismatch", update_id)
+            continue
 
-        return SimpleNamespace(
-            status="sent",
-            telegram_message_id=message_id,
-            calendar_event_id=None,
-            dry_run=False,
-        )
+        if msg_ts >= latest_ts:
+            latest_ts = msg_ts
+            latest = dict(message)
+            latest["_update_id"] = update_id
+
+    return latest
+
+
+def _matches_booking_reply(
+    message: dict,
+    *,
+    text: str,
+    reply_to_message_id: str | None,
+    booking_reference: str | None,
+    allow_unthreaded: bool,
+) -> bool:
+    if booking_reference and booking_reference.lower() in text.lower():
+        return True
+
+    if reply_to_message_id:
+        reply_to = message.get("reply_to_message")
+        if isinstance(reply_to, dict) and str(reply_to.get("message_id")) == str(
+            reply_to_message_id
+        ):
+            return True
+
+    return allow_unthreaded
