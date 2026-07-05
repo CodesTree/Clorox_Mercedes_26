@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   createBooking,
+  getAdvisoryInterpret,
   getDepreciation,
   getFaults,
   getHealth,
@@ -10,6 +11,7 @@ import {
   isModelUnavailable,
   makeObdStreamUrl,
   predict,
+  type AdvisoryInterpretOut,
   type DepreciationOut,
   type FaultOut,
   type MarketCompsOut,
@@ -26,6 +28,7 @@ import {
   demoProfile,
   demoSnapshot,
 } from "./api/mockData";
+import { AdvisoryModal } from "./components/AdvisoryModal";
 import { BookingModal } from "./components/BookingModal";
 import { ComponentDetail } from "./components/ComponentDetail";
 import { ComponentDock } from "./components/ComponentDock";
@@ -37,6 +40,7 @@ import { CarScene } from "./scene/CarScene";
 import "./styles/theme.css";
 
 type ApiStatus = "checking" | "online" | "offline";
+type AdvisoryStatus = "idle" | "loading" | "ready" | "error";
 
 interface DashboardState {
   profile: VehicleProfile | null;
@@ -104,6 +108,9 @@ export default function App() {
   const [version, setVersion] = useState("");
   const [selectedComponent, setSelectedComponent] = useState<ComponentId>("engine");
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [advisoryOpen, setAdvisoryOpen] = useState(false);
+  const [advisoryStatus, setAdvisoryStatus] = useState<AdvisoryStatus>("idle");
+  const [advisoryInterpret, setAdvisoryInterpret] = useState<AdvisoryInterpretOut | null>(null);
   const [dashboard, setDashboard] = useState<DashboardState>(initialDashboard);
 
   useEffect(() => {
@@ -237,6 +244,20 @@ export default function App() {
     return "Demo mode";
   }, [apiStatus, version]);
 
+  async function openAdvisory() {
+    const profileId = dashboard.profile?.id ?? 1;
+    setAdvisoryOpen(true);
+    setAdvisoryStatus("loading");
+    try {
+      const interpret = await getAdvisoryInterpret(profileId);
+      setAdvisoryInterpret(interpret);
+      setAdvisoryStatus("ready");
+    } catch {
+      setAdvisoryInterpret(null);
+      setAdvisoryStatus("error");
+    }
+  }
+
   return (
     <main className="shell">
       <section className="dashboard-stage" aria-label="AssetIQ valuation dashboard">
@@ -280,10 +301,16 @@ export default function App() {
         />
 
         <div className="cta-cluster">
-          <button className="inspection-button" type="button" onClick={() => setBookingOpen(true)}>
-            Book certified inspection
-            <span>Step 1 of 2</span>
-          </button>
+          <div className="cta-actions">
+            <button className="inspection-button" type="button" onClick={() => setBookingOpen(true)}>
+              Book certified inspection
+              <span>Step 1 of 2</span>
+            </button>
+            <button className="advisory-button" type="button" onClick={openAdvisory}>
+              <span aria-hidden="true">AI</span>
+              Advisory
+            </button>
+          </div>
           <p>Next official slot - Fri 10 Jul - Hap Seng Star KL</p>
         </div>
 
@@ -303,6 +330,22 @@ export default function App() {
             ...form,
           })
         }
+      />
+      <AdvisoryModal
+        open={advisoryOpen}
+        profile={dashboard.profile}
+        prediction={dashboard.prediction}
+        depreciation={dashboard.depreciation?.points ?? null}
+        snapshot={dashboard.snapshot}
+        faults={dashboard.faults}
+        market={dashboard.market}
+        advisory={advisoryInterpret}
+        advisoryStatus={advisoryStatus}
+        onClose={() => setAdvisoryOpen(false)}
+        onBookInspection={() => {
+          setAdvisoryOpen(false);
+          setBookingOpen(true);
+        }}
       />
     </main>
   );

@@ -1,5 +1,6 @@
 import { http, HttpResponse } from "msw";
 import {
+  demoAdvisoryInterpret,
   demoDepreciation,
   demoFaults,
   demoMarket,
@@ -17,6 +18,7 @@ export const mockHandlers = [
   http.get("/api/market/comps", () => HttpResponse.json(demoMarket)),
   http.post("/api/predict", () => HttpResponse.json(demoPrediction)),
   http.get("/api/depreciation", () => HttpResponse.json(demoDepreciation)),
+  http.get("/api/advisory/interpret", () => HttpResponse.json(demoAdvisoryInterpret)),
   http.post("/api/booking", async ({ request }) => {
     const booking = (await request.json()) as BookingIn;
     return HttpResponse.json({

@@ -50,7 +50,14 @@ function response(data: unknown, ok = true, status = 200) {
   } as Response);
 }
 
-function mockFetch(options: { modelUnavailable?: boolean; placeholderProfile?: boolean } = {}) {
+function mockFetch(
+  options: {
+    modelUnavailable?: boolean;
+    placeholderProfile?: boolean;
+    calendarError?: boolean;
+    advisoryError?: boolean;
+  } = {},
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url: RequestInfo | URL) => {
@@ -122,13 +129,39 @@ function mockFetch(options: { modelUnavailable?: boolean; placeholderProfile?: b
           ],
         });
       }
+      if (path.includes("/advisory/interpret")) {
+        if (options.advisoryError) {
+          return response({ detail: "Not Found" }, false, 404);
+        }
+        return response({
+          recommendation: "Repair and keep",
+          summary:
+            "Gemini says repair and keep because the RM18,400 repair bundle is lower than the five-year depreciation loss.",
+          horizon_years: 5,
+          current_value_rm: 738000,
+          horizon_value_rm: 620000,
+          depreciation_loss_rm: 118000,
+          total_repair_cost_rm: 18400,
+          repairs: [
+            { name: "Battery health check", cost_rm: 4200 },
+            { name: "Brake wear service", cost_rm: 7800 },
+            { name: "Cooling system inspection", cost_rm: 6400 },
+          ],
+          llm_used: true,
+        });
+      }
       if (path.includes("/booking")) {
         return response({
           booking_id: 12,
           status: "dry_run",
           dispatched: false,
           dry_run: true,
-          payload: { text: "Inspection booking request" },
+          payload: options.calendarError
+            ? {
+                calendar_mode: "shared",
+                calendar_error: "Google Calendar credentials file not found",
+              }
+            : { text: "Inspection booking request" },
         });
       }
       return response({}, false, 404);
@@ -229,6 +262,51 @@ test("booking modal suggests nearest Mercedes centre and submits the hidden insp
     car_model: "Mercedes-AMG GT 63 S 4MATIC+",
     purpose: "Certified inspection",
   });
+});
+
+test("booking modal shows calendar error details when booking stays in dry-run", async () => {
+  mockFetch({ calendarError: true });
+
+  render(<App />);
+
+  fireEvent.click(await screen.findByRole("button", { name: /Book certified inspection/i }));
+  fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test User" } });
+  fireEvent.click(screen.getByRole("button", { name: /^Submit booking$/i }));
+
+  expect(await screen.findByText(/Google Calendar credentials file not found/i)).toBeInTheDocument();
+});
+
+test("advisory button opens the keep-versus-sell advisory summary", async () => {
+  render(<App />);
+
+  fireEvent.click(await screen.findByRole("button", { name: /Advisory/i }));
+
+  const modal = screen.getByRole("dialog", { name: "AssetIQ advisory" });
+  expect(within(modal).getByText(/Keep vs sell analysis/i)).toBeInTheDocument();
+  expect(within(modal).getByLabelText("Gemini insight")).toBeInTheDocument();
+  expect(
+    await within(modal).findByText(
+      /Gemini says repair and keep because the RM18,400 repair bundle is lower than the five-year depreciation loss/i,
+    ),
+  ).toBeInTheDocument();
+  expect(within(modal).getByText(/View repair priorities/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/Book trade-in appointment/i)).toBeInTheDocument();
+
+  const advisoryCall = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes("/advisory/interpret"));
+  expect(advisoryCall).toBeDefined();
+  expect(String(advisoryCall?.[0])).toContain("profile_id=1");
+});
+
+test("advisory modal explains when Gemini insight is unavailable", async () => {
+  mockFetch({ advisoryError: true });
+
+  render(<App />);
+
+  fireEvent.click(await screen.findByRole("button", { name: /Advisory/i }));
+
+  const modal = screen.getByRole("dialog", { name: "AssetIQ advisory" });
+  expect(await within(modal).findByText(/Gemini insight unavailable/i)).toBeInTheDocument();
+  expect(within(modal).getByText(/showing local fallback/i)).toBeInTheDocument();
 });
 
 test("shows graceful placeholders when valuation models are not trained", async () => {

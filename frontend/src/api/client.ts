@@ -19,6 +19,7 @@ export interface VehicleProfile {
   service_history_count: number | null;
   service_history_total: number | null;
   service_history_max: number | null;
+  original_purchase_price_rm?: number | null;
   workshop: string | null;
   glb_asset: string | null;
   created_at: string;
@@ -124,6 +125,23 @@ export interface BookingOut {
   payload: BookingPayload | null;
 }
 
+export interface RepairItemOut {
+  name: string;
+  cost_rm: number;
+}
+
+export interface AdvisoryInterpretOut {
+  recommendation: "Sell" | "Repair and keep" | string;
+  summary: string;
+  horizon_years: number;
+  current_value_rm: number;
+  horizon_value_rm: number;
+  depreciation_loss_rm: number;
+  total_repair_cost_rm: number;
+  repairs: RepairItemOut[];
+  llm_used: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -195,6 +213,10 @@ export function predict(profile: VehicleProfileIn) {
 
 export function getDepreciation(profileId: number, years = 5) {
   return request<DepreciationOut>("/depreciation", undefined, { profile_id: profileId, years });
+}
+
+export function getAdvisoryInterpret(profileId: number) {
+  return request<AdvisoryInterpretOut>("/advisory/interpret", undefined, { profile_id: profileId });
 }
 
 export function createBooking(booking: BookingIn) {

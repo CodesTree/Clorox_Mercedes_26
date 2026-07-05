@@ -80,7 +80,13 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
               date,
               time,
             });
-            setStatus(result.dry_run ? "Dry-run booking saved" : "Booking dispatched");
+            setStatus(
+              result.dry_run && result.payload?.calendar_error
+                ? `Dry-run booking saved: ${result.payload.calendar_error}`
+                : result.dry_run
+                  ? "Dry-run booking saved"
+                  : "Booking dispatched",
+            );
           }}
         >
           <label>

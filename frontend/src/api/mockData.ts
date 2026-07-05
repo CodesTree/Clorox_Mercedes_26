@@ -1,4 +1,5 @@
 import type {
+  AdvisoryInterpretOut,
   DepreciationOut,
   FaultsOut,
   MarketCompsOut,
@@ -63,6 +64,23 @@ export const demoDepreciation: DepreciationOut = {
     { year: 2027, value_rm: 684000, retained_pct: 0.38 },
     { year: 2028, value_rm: 640000, retained_pct: 0.36 },
   ],
+};
+
+export const demoAdvisoryInterpret: AdvisoryInterpretOut = {
+  recommendation: "Repair and keep",
+  summary:
+    "Repair and keep for now: the RM18,400 repair bundle is lower than the projected RM118,000 depreciation loss over 5 years.",
+  horizon_years: 5,
+  current_value_rm: 738000,
+  horizon_value_rm: 620000,
+  depreciation_loss_rm: 118000,
+  total_repair_cost_rm: 18400,
+  repairs: [
+    { name: "Battery health check", cost_rm: 4200 },
+    { name: "Brake wear service", cost_rm: 7800 },
+    { name: "Cooling system inspection", cost_rm: 6400 },
+  ],
+  llm_used: false,
 };
 
 export const demoFaults: FaultsOut = {

@@ -1,6 +1,13 @@
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
-import { createBooking, getMarketComps, getObdSnapshot, getVehicleProfile, predict } from "./client";
+import {
+  createBooking,
+  getAdvisoryInterpret,
+  getMarketComps,
+  getObdSnapshot,
+  getVehicleProfile,
+  predict,
+} from "./client";
 import { mockHandlers } from "./mockHandlers";
 
 const server = setupServer(...mockHandlers);
@@ -14,6 +21,7 @@ test("MSW handlers cover the Phase 04 dashboard contract", async () => {
   const snapshot = await getObdSnapshot(profile.id);
   const market = await getMarketComps(profile.model, profile.year);
   const valuation = await predict(profile);
+  const advisory = await getAdvisoryInterpret(profile.id);
   const booking = await createBooking({
     profile_id: profile.id,
     name: "Test User",
@@ -28,5 +36,6 @@ test("MSW handlers cover the Phase 04 dashboard contract", async () => {
   expect(snapshot.health).toBe(87);
   expect(market.delta_pct).toBe(0.024);
   expect(valuation.value_rm).toBe(738000);
+  expect(advisory.recommendation).toBe("Repair and keep");
   expect(booking.status).toBe("dry_run");
 });
