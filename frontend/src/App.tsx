@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  checkBookingReply,
   createBooking,
+  getBookingAvailability,
   getDepreciation,
   getFaults,
   getHealth,
   getMarketComps,
   getObdSnapshot,
-  getVehicleProfile,
   isModelUnavailable,
   makeObdStreamUrl,
-  predict,
+  predictObd,
   type DepreciationOut,
   type FaultOut,
   type MarketCompsOut,
   type ObdSnapshotOut,
   type PredictOut,
   type VehicleProfile,
-  type VehicleProfileIn,
 } from "./api/client";
 import {
+  demoCarFeatures,
   demoDepreciation,
   demoFaults,
   demoMarket,
@@ -26,6 +27,7 @@ import {
   demoProfile,
   demoSnapshot,
 } from "./api/mockData";
+import { AdvisoryModal } from "./components/AdvisoryModal";
 import { BookingModal } from "./components/BookingModal";
 import { ComponentDetail } from "./components/ComponentDetail";
 import { ComponentDock } from "./components/ComponentDock";
@@ -63,41 +65,8 @@ const initialDashboard: DashboardState = {
 
 const OBD_POLL_INTERVAL_MS = 5000;
 
-function toPredictionPayload(profile: VehicleProfile): VehicleProfileIn {
-  return {
-    model: profile.model,
-    year: profile.year,
-    mileage: profile.mileage,
-    transmission: profile.transmission,
-    fuel_type: profile.fuel_type,
-    engine_size: profile.engine_size,
-    mpg: profile.mpg,
-    tax: profile.tax,
-    service_history_count: profile.service_history_count,
-    service_history_total: profile.service_history_total,
-  };
-}
-
 function isOffline(error: unknown) {
   return !isModelUnavailable(error);
-}
-
-function isPlaceholderProfile(profile: VehicleProfile) {
-  const model = profile.model.trim().toLowerCase();
-  return model === "string" || (profile.year === 1970 && profile.mileage === 0);
-}
-
-function normalizeProfile(profile: VehicleProfile): VehicleProfile {
-  if (!isPlaceholderProfile(profile)) {
-    return profile;
-  }
-
-  return {
-    ...demoProfile,
-    id: profile.id,
-    created_at: profile.created_at,
-    updated_at: profile.updated_at,
-  };
 }
 
 export default function App() {
@@ -105,6 +74,7 @@ export default function App() {
   const [version, setVersion] = useState("");
   const [selectedComponent, setSelectedComponent] = useState<ComponentId>("engine");
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [advisoryOpen, setAdvisoryOpen] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardState>(initialDashboard);
 
   useEffect(() => {
@@ -123,19 +93,14 @@ export default function App() {
     let active = true;
 
     async function loadDashboard() {
-      let profile = demoProfile;
-      try {
-        profile = normalizeProfile(await getVehicleProfile(1));
-      } catch {
-        setApiStatus("offline");
-      }
+      const profile = demoProfile;
 
       const [snapshotResult, faultsResult, marketResult, predictionResult, depreciationResult] =
         await Promise.allSettled([
           getObdSnapshot(profile.id),
           getFaults(profile.id),
           getMarketComps(profile.model, profile.year),
-          predict(toPredictionPayload(profile)),
+          predictObd(demoCarFeatures),
           getDepreciation(profile.id, 5),
         ]);
 
@@ -244,7 +209,12 @@ export default function App() {
         <div className="stage-border" />
         <header className="stage-topbar">
           <span className="wordmark">
-            <span className="wordmark-spark">*</span> AssetIQ
+            <span className="wordmark-spark" data-testid="wordmark-star" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M12 2.5l2.35 7.15 7.15 2.35-7.15 2.35L12 21.5l-2.35-7.15L2.5 12l7.15-2.35L12 2.5z" />
+              </svg>
+            </span>
+            AssetIQ
             <span className="wordmark-sub">for Mercedes-Benz</span>
           </span>
           <span className={`api-pill api-pill--${apiStatus}`} data-testid="api-status">
@@ -277,10 +247,16 @@ export default function App() {
         />
 
         <div className="cta-cluster">
-          <button className="inspection-button" type="button" onClick={() => setBookingOpen(true)}>
-            Book certified inspection
-            <span>Step 1 of 2</span>
-          </button>
+          <div className="cta-actions">
+            <button className="inspection-button" type="button" onClick={() => setBookingOpen(true)}>
+              Book certified inspection
+              <span>Step 1 of 2</span>
+            </button>
+            <button className="advisory-button" type="button" onClick={() => setAdvisoryOpen(true)}>
+              <span aria-hidden="true">AI</span>
+              Advisory
+            </button>
+          </div>
           <p>Next official slot - Fri 10 Jul - Hap Seng Star KL</p>
         </div>
 
@@ -300,6 +276,22 @@ export default function App() {
             ...form,
           })
         }
+        onGetAvailability={getBookingAvailability}
+        onCheckReply={checkBookingReply}
+      />
+      <AdvisoryModal
+        open={advisoryOpen}
+        profile={dashboard.profile}
+        prediction={dashboard.prediction}
+        depreciation={dashboard.depreciation?.points ?? null}
+        snapshot={dashboard.snapshot}
+        faults={dashboard.faults}
+        market={dashboard.market}
+        onClose={() => setAdvisoryOpen(false)}
+        onBookInspection={() => {
+          setAdvisoryOpen(false);
+          setBookingOpen(true);
+        }}
       />
     </main>
   );

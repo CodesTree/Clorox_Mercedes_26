@@ -20,9 +20,13 @@ def test_cors_origins_splits_on_comma():
     assert s.cors_origin_list == ["http://a.test", "http://b.test"]
 
 
-def test_default_env_file_is_repo_root_env_file():
-    repo_root = Path(__file__).resolve().parents[2]
-    assert Settings.model_config["env_file"] == repo_root / ".env"
+def test_env_file_loads_repo_root_and_backend():
+    backend_dir = Path(__file__).resolve().parents[1]
+    # Loads repo-root .env (where the real .env lives) first, then backend/.env.
+    assert Settings.model_config["env_file"] == (
+        backend_dir.parent / ".env",
+        backend_dir / ".env",
+    )
 
 
 def test_relative_google_calendar_credentials_path_resolves_from_backend_dir():

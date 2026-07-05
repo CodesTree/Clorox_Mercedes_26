@@ -39,6 +39,37 @@ export type VehicleProfileIn = Pick<
   | "service_history_total"
 >;
 
+export interface CarFeaturesIn {
+  model_class: string;
+  year: number;
+  mileage: number;
+  transmission: string;
+  fuel_type: string;
+  engine_size: number;
+  source_market: string;
+  age: number;
+  variant: string;
+  displacement_cc: number;
+  n_cylinders: number;
+  n_gears: number;
+  top_speed_kmh: number;
+  torque_nm: number;
+  accel_0_100_s: number;
+  boot_l: number;
+  engine_config: string;
+  aspiration: string;
+  gear_type: string;
+  front_brake: string;
+  rear_brake: string;
+  match_level: string;
+  battery_soh: number;
+  trans_adapt_offset: number;
+  estimated_annual_mileage: number;
+  dtc_fault_count: number;
+  brake_life_pct: number;
+  health_score: number;
+}
+
 export interface PredictOut {
   value_rm: number;
   low_rm: number;
@@ -143,6 +174,20 @@ export interface AdvisoryVoiceResponse {
   text_provider: "gemini" | "local";
   tts_wait_ms: number;
   gemini_key_detected: boolean;
+export interface BookingAvailabilityOut {
+  date: string;
+  slots: string[];
+}
+
+export interface BookingReplyOut {
+  booking_id: number;
+  status: string;
+  booked: boolean;
+  proposed_date: string;
+  proposed_time: string;
+  round: number;
+  classification: string;
+  message: string;
 }
 
 export class ApiError extends Error {
@@ -214,6 +259,13 @@ export function predict(profile: VehicleProfileIn) {
   });
 }
 
+export function predictObd(features: CarFeaturesIn) {
+  return request<PredictOut>("/predict/obd", {
+    method: "POST",
+    body: JSON.stringify(features),
+  });
+}
+
 export function getDepreciation(profileId: number, years = 5) {
   return request<DepreciationOut>("/depreciation", undefined, { profile_id: profileId, years });
 }
@@ -242,6 +294,13 @@ export function respondToAdvisoryVoice(question: string, advisory: AdvisoryData)
     console.log("[voice] fallback_reason:", response.fallback_reason);
     console.log("[voice] audio_base64 length:", response.audio_base64?.length ?? 0);
     return response;
+export function getBookingAvailability(date: string) {
+  return request<BookingAvailabilityOut>("/booking/availability", undefined, { date });
+}
+
+export function checkBookingReply(bookingId: number) {
+  return request<BookingReplyOut>(`/booking/${bookingId}/check-reply`, {
+    method: "POST",
   });
 }
 

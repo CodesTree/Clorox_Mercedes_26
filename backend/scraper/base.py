@@ -10,9 +10,6 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
 
-# SeleniumBase for undetected Chrome (handles Cloudflare JS challenges)
-from seleniumbase import Driver
-
 logger = logging.getLogger(__name__)
 
 _UA_LINE_RE = re.compile(r"(?i)^(user-agent:\s*)(\S+)")
@@ -30,6 +27,24 @@ def _strip_ua_versions(content: str) -> str:
     return "\n".join(lines)
 
 
+def looks_like_challenge(html: str) -> bool:
+    """True when the HTML is an anti-bot interstitial rather than real content."""
+    if not html:
+        return False
+    lower = html.lower()
+    return "cloudflare" in lower and ("just a moment" in lower or "verification" in lower)
+
+
+def looks_like_server_error(html: str) -> bool:
+    """True when the HTML is a hosting-provider error page (e.g. disk quota
+    exceeded) rather than real content. Distinct from ``looks_like_challenge``:
+    this is the target site's own infrastructure failing, not an anti-bot gate."""
+    if not html:
+        return False
+    lower = html.lower()
+    return "insufficient storage" in lower or "insufficient free space left in your storage allocation" in lower
+
+
 @dataclass
 class ScraperConfig:
     user_agent: str
@@ -39,6 +54,7 @@ class ScraperConfig:
     cache_ttl_hours: int
     max_retries: int = 3
     request_timeout_seconds: float = 30.0
+    headless: bool = False
 
 
 class PoliteFetcher:
@@ -59,6 +75,7 @@ class PoliteFetcher:
         self.last_error = ""
         self._robots: dict[str, RobotFileParser] = {}
         self._crawl_delays: dict[str, float] = {}
+        self._driver = None
 
     def fetch(self, url: str, use_cache: bool = True) -> str:
         """Fetch a URL politely using a real Chromium browser."""
@@ -176,9 +193,10 @@ class PoliteFetcher:
     def _summarize_failed_response(self, html: str, status: int) -> str:
         if not html:
             return f"HTTP {status}"
-        lower = html.lower()
-        if "cloudflare" in lower and ("just a moment" in lower or "verification" in lower):
+        if looks_like_challenge(html):
             return f"HTTP {status} anti-bot challenge page"
+        if looks_like_server_error(html):
+            return f"HTTP {status} host storage/server error page"
         text = re.sub(r"<[^>]+>", " ", html)
         text = _WHITESPACE_RE.sub(" ", text).strip()
         if len(text) > 200:
@@ -186,35 +204,67 @@ class PoliteFetcher:
         return f"HTTP {status}: {text}"
 
     # ----------------------------------------------------------------------
-    # NEW: _fetch_once using SeleniumBase UC mode
+    # _fetch_once using SeleniumBase UC mode with a persistent driver.
+    # One Chrome instance serves the whole crawl: launching per page costs
+    # ~10-15s each and discards the Cloudflare clearance cookie every time.
     # ----------------------------------------------------------------------
-    def _fetch_once(self, url: str) -> tuple[str, int]:
-        """Fetch via SeleniumBase UC – handles Cloudflare JS challenges."""
-        driver = None
-        try:
-            logger.info("Network fetch (SeleniumBase UC): %s", url)
-            driver = Driver(
-                uc=True,                # undetected-chrome mode
-                headless=False,         # visible browser (most reliable)
-                headless2=False,        # keep False; use headless=True + headless2=True for stealth headless
+    def _get_driver(self):
+        if self._driver is None:
+            # Imported lazily: parsing-only paths (tests, fixtures) never need
+            # a browser, and SeleniumBase pulls in the whole Selenium stack.
+            from seleniumbase import Driver
+
+            self._driver = Driver(
+                uc=True,                              # undetected-chrome mode
+                headless=self.config.headless,
+                headless2=self.config.headless,
                 browser="chrome",
                 agent=self.config.user_agent,
                 page_load_strategy="normal",
             )
+            self._driver.implicitly_wait(30)
+        return self._driver
+
+    def close(self) -> None:
+        """Quit the persistent browser (safe to call multiple times)."""
+        if self._driver is not None:
+            try:
+                self._driver.quit()
+            except Exception:  # pragma: no cover - best-effort teardown
+                pass
+            self._driver = None
+
+    def __enter__(self) -> "PoliteFetcher":
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        self.close()
+
+    def __del__(self):  # pragma: no cover - defensive teardown
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def _fetch_once(self, url: str) -> tuple[str, int]:
+        """Fetch via SeleniumBase UC – handles Cloudflare JS challenges."""
+        try:
+            logger.info("Network fetch (SeleniumBase UC): %s", url)
+            driver = self._get_driver()
             driver.get(url)
-            # Wait up to 30 seconds for the page to load (including Cloudflare challenges)
-            driver.implicitly_wait(30)
-            # Optional: wait for a specific element to confirm the page is ready
-            # driver.wait_for_element("body", timeout=30)
             html = driver.page_source
-            status = 200
-            return html, status
+            if looks_like_challenge(html) or looks_like_server_error(html):
+                # Give the UC challenge auto-solve (or the host's transient
+                # error) a moment, then re-read once before giving up.
+                self._sleep(6)
+                html = driver.page_source
+                if looks_like_challenge(html) or looks_like_server_error(html):
+                    return html, 503  # retryable via backoff
+            return html, 200
         except Exception as exc:
             logger.error("SeleniumBase fetch failed for %s: %s", url, exc)
-            return "", 500   # trigger retry
-        finally:
-            if driver:
-                driver.quit()
+            self.close()  # broken session: recreate the driver on next attempt
+            return "", 500  # trigger retry
     # ----------------------------------------------------------------------
 
     def _cache_path(self, url: str) -> Path:

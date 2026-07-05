@@ -22,16 +22,18 @@ test("dashboard styling does not draw a second CSS orbit ring", () => {
   expect(themeCss).not.toMatch(/\.dashboard-stage::after\s*{[^}]*border:/s);
 });
 
-test("procedural coupe body uses a smooth sectioned geometry", () => {
+test("bundle coupe body ports Claude's exported extruded silhouette", () => {
   const geometry = createCoupeBodyGeometry();
 
-  expect(geometry.type).toBe("BufferGeometry");
-  expect(geometry.attributes.position.count).toBeGreaterThan(300);
+  expect(geometry.type).toBe("ExtrudeGeometry");
+  expect(geometry.attributes.position.count).toBeGreaterThan(500);
+  expect(carSceneSource).toContain("createCoupeBodyGeometry");
+  expect(carSceneSource).not.toContain("OBJLoader");
 
   geometry.dispose();
 });
 
-test("procedural coupe has a long AMG GT-style side profile", () => {
+test("bundle coupe has Claude's AMG-style side profile", () => {
   const geometry = createCoupeBodyGeometry();
   geometry.computeBoundingBox();
 
@@ -39,22 +41,24 @@ test("procedural coupe has a long AMG GT-style side profile", () => {
   const length = box.max.x - box.min.x;
   const height = box.max.y - box.min.y;
 
-  expect(length).toBeGreaterThan(5.55);
-  expect(length).toBeLessThan(6.05);
-  expect(height).toBeLessThan(1.12);
+  expect(length).toBeGreaterThan(5.1);
+  expect(length).toBeLessThan(5.16);
+  expect(height).toBeGreaterThan(1.2);
+  expect(height).toBeLessThan(1.26);
 
   geometry.dispose();
 });
 
-test("procedural coupe body is wide enough to avoid a stretched limousine look", () => {
+test("bundle coupe body uses the prototype body depth", () => {
   const geometry = createCoupeBodyGeometry();
   geometry.computeBoundingBox();
 
   const box = geometry.boundingBox as Box3;
   const length = box.max.x - box.min.x;
   const depth = box.max.z - box.min.z;
-  expect(depth).toBeGreaterThan(1.78);
-  expect(length / depth).toBeLessThan(3.35);
+  expect(depth).toBeGreaterThan(1.74);
+  expect(depth).toBeLessThan(1.82);
+  expect(length / depth).toBeLessThan(2.95);
 
   geometry.dispose();
 });
@@ -80,7 +84,7 @@ test("camera uses an orthographic safe frame so the car and orbit ring cannot cr
   expect(COUPE_CAMERA_MODE).toBe("orthographic");
   expect(COUPE_SAFE_FRAME_WIDTH).toBeGreaterThan(COUPE_ORBIT_OUTER_RADIUS * 2 + 1);
   expect(COUPE_SAFE_FRAME_HEIGHT).toBeGreaterThan(4.35);
-  expect(COUPE_MAX_ZOOM_RATIO).toBeLessThanOrEqual(1.24);
+  expect(COUPE_MAX_ZOOM_RATIO).toBeGreaterThanOrEqual(1.65);
   expect(carSceneSource).not.toContain("COUPE_TOP_VIEW_SAFE_FRAME_HEIGHT");
 });
 
@@ -92,8 +96,32 @@ test("orbit controls use a fixed close start with smooth damped motion", () => {
 });
 
 test("dashboard reserves a larger canvas for the car scene", () => {
-  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*width:\s*min\(100%,\s*1220px\);/s);
-  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*height:\s*min\(70vh,\s*640px\);/s);
+  expect(themeCss).toMatch(/\.dashboard-stage\s*{[^}]*overflow:\s*visible;/s);
+  expect(themeCss).toMatch(/\.car-stage\s*{[^}]*overflow:\s*visible;/s);
+  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*width:\s*min\(132vw,\s*1680px\);/s);
+  expect(themeCss).toMatch(/\.car-scene,\s*\.car-fallback\s*{[^}]*height:\s*min\(88vh,\s*820px\);/s);
+});
+
+test("booking date and time controls use the dark dashboard theme", () => {
+  expect(themeCss).toMatch(/\.booking-modal input:is\(\[type="date"\],\s*\[type="time"\]\)\s*{[^}]*color-scheme:\s*dark;/s);
+  expect(themeCss).toMatch(/\.booking-modal input:is\(\[type="date"\],\s*\[type="time"\]\)::\-webkit-calendar-picker-indicator\s*{[^}]*filter:/s);
+});
+
+test("dashboard typography is sized for presentation viewing", () => {
+  expect(themeCss).toMatch(/\.value-header h1\s*{[^}]*font-size:\s*64px;/s);
+  expect(themeCss).toMatch(/\.telemetry-stat strong\s*{[^}]*font-size:\s*32px;/s);
+  expect(themeCss).toMatch(/\.component-detail p\s*{[^}]*font-size:\s*12px;/s);
+  expect(themeCss).toMatch(/\.dock-button strong\s*{[^}]*font-size:\s*11px;/s);
+});
+
+test("dashboard visual system matches Claude cinematic stage v2", () => {
+  expect(themeCss).toContain("--bg: #0a0d0e;");
+  expect(themeCss).toMatch(/radial-gradient\(80% 55% at 50% 32%,\s*rgba\(0,\s*210,\s*190,\s*0\.07\)/s);
+  expect(themeCss).toMatch(/\.stage-border\s*{[^}]*border-radius:\s*12px;/s);
+  expect(themeCss).toMatch(/\.component-detail,\s*\.depreciation-panel,\s*\.booking-modal\s*{[^}]*border-radius:\s*16px;/s);
+  expect(themeCss).toMatch(/\.dock-button\s*{[^}]*border-radius:\s*14px;/s);
+  expect(themeCss).toMatch(/\.component-detail\s*{[^}]*left:\s*26px;[^}]*bottom:\s*26px;/s);
+  expect(themeCss).toMatch(/\.depreciation-panel\s*{[^}]*right:\s*26px;[^}]*bottom:\s*26px;/s);
 });
 
 test("component selectors map to local highlight regions instead of tinting the full body", () => {
@@ -103,8 +131,10 @@ test("component selectors map to local highlight regions instead of tinting the 
   expect(HIGHLIGHT_REGIONS.engine.shape).toBe("engineBay");
   expect(HIGHLIGHT_REGIONS.fuel.shape).toBe("fuelTank");
   expect(HIGHLIGHT_REGIONS.battery.shape).toBe("batteryModule");
-  expect(carSceneSource).toContain("renderImportedShapedHighlight");
-  expect(carSceneSource).toContain("<capsuleGeometry");
+  expect(HIGHLIGHT_REGIONS.service.kind).toBe("fullFrame");
+  expect(carSceneSource).toContain("PART_GLOW_VOLUMES");
+  expect(carSceneSource).toContain("<BundleCoupe selected={selected} onSelect={onSelect} />");
+  expect(carSceneSource).toContain("new EdgesGeometry(bodyGeometry, 22)");
   expect(carSceneSource).toContain("<cylinderGeometry");
   expect(carSceneSource).not.toContain('emissive={selected === "engine" ?');
   expect(carSceneSource).toContain("depthTest={false}");

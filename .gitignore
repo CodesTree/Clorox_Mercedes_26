@@ -232,3 +232,4 @@ backend/.venv/
 node_modules/
 frontend/dist/
 data/merc_engineered.csv
+.secrets

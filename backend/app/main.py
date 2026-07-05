@@ -27,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(valuation.router)
+app.include_router(advisory.router)
 app.include_router(market.router)
 app.include_router(telemetry.router)
 app.include_router(diagnostics.router)

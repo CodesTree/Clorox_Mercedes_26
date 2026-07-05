@@ -21,6 +21,7 @@ class VehicleProfileIn(BaseModel):
     transmission: str
     fuel_type: str
     engine_size: float = Field(ge=0)
+    original_purchase_price_rm: int | None = Field(default=None, ge=0)
     mpg: float | None = None
     tax: float | None = None
     service_history_count: int | None = Field(default=None, ge=0)
@@ -45,6 +46,46 @@ class PredictOut(BaseModel):
     high_rm: int
     confidence: float = Field(ge=0, le=1)
     currency: Literal["RM"] = "RM"
+
+
+class CarFeaturesIn(BaseModel):
+    """Full feature payload for the /predict/obd demo (mock OBD-II + car specs).
+
+    Mirrors the columns the RF price model was trained on
+    (see backend/ml/artifacts/price_model_meta.json). Numeric fields are floats so the
+    demo JSON round-trips cleanly; the OBD-II block is the last six fields.
+    """
+
+    # --- car specs ---
+    model_class: str
+    year: float
+    mileage: float
+    transmission: str
+    fuel_type: str
+    engine_size: float
+    source_market: str
+    age: float
+    variant: str
+    displacement_cc: float
+    n_cylinders: float
+    n_gears: float
+    top_speed_kmh: float
+    torque_nm: float
+    accel_0_100_s: float
+    boot_l: float
+    engine_config: str
+    aspiration: str
+    gear_type: str
+    front_brake: str
+    rear_brake: str
+    match_level: str
+    # --- simulated OBD-II / vehicle-health block ---
+    battery_soh: float
+    trans_adapt_offset: float
+    estimated_annual_mileage: float
+    dtc_fault_count: float
+    brake_life_pct: float
+    health_score: float
 
 
 class MarketListingOut(BaseModel):
@@ -99,6 +140,23 @@ class FaultsOut(BaseModel):
     faults: list[FaultOut]
 
 
+class RepairItemOut(BaseModel):
+    name: str
+    cost_rm: int = Field(ge=0)
+
+
+class AdvisoryInterpretOut(BaseModel):
+    recommendation: Literal["Sell", "Repair and keep"]
+    summary: str
+    horizon_years: int
+    current_value_rm: int
+    horizon_value_rm: int
+    depreciation_loss_rm: int
+    total_repair_cost_rm: int
+    repairs: list[RepairItemOut]
+    llm_used: bool = False
+
+
 class BookingIn(BaseModel):
     profile_id: int
     name: str
@@ -141,3 +199,30 @@ class AdvisoryVoiceResponse(BaseModel):
     text_provider: Literal["gemini", "local"] = "local"
     tts_wait_ms: int = 0
     gemini_key_detected: bool = False
+class BookingAvailabilityOut(BaseModel):
+    date: str  # ISO-8601 YYYY-MM-DD
+    slots: list[str]  # free "HH:MM" start times within working hours
+
+
+class BookingReplyOut(BaseModel):
+    booking_id: int
+    status: str
+    booked: bool
+    proposed_date: str
+    proposed_time: str
+    round: int
+    classification: str  # confirmed | unavailable | unclear | none
+    message: str
+
+
+class BookingDiagnosticsOut(BaseModel):
+    """Secret-free view of booking-integration configuration for debugging."""
+
+    telegram_configured: bool
+    telegram_webhook_configured: bool
+    gemini_configured: bool
+    calendar_write_configured: bool
+    calendar_read_configured: bool
+    calendar_id: str
+    service_account_email: str | None = None  # share the calendar with this address
+    freebusy_probe: str  # "ok" or "error: <reason>"

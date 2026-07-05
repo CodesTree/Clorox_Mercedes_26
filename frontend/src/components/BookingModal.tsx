@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import type { BookingOut, VehicleProfile } from "../api/client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type {
+  BookingAvailabilityOut,
+  BookingOut,
+  BookingReplyOut,
+  VehicleProfile,
+} from "../api/client";
 import {
   currentVehicleLocation,
   formatDistanceKm,
@@ -19,16 +24,43 @@ interface BookingModalProps {
     date: string;
     time: string;
   }) => Promise<BookingOut>;
+  onGetAvailability: (date: string) => Promise<BookingAvailabilityOut>;
+  onCheckReply: (bookingId: number) => Promise<BookingReplyOut>;
 }
+
+type Step = "details" | "review" | "status";
 
 const BOOKING_PURPOSE = "Certified inspection";
 
-export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalProps) {
+function statusLabel(result: BookingOut): string {
+  if (result.dry_run) return "Dry-run booking saved";
+  if (result.status === "sent") return "Booking request sent - awaiting confirmation";
+  if (result.status === "booked") return "Booking confirmed";
+  return `Booking ${result.status}`;
+}
+
+export function BookingModal({
+  open,
+  profile,
+  onClose,
+  onSubmit,
+  onGetAvailability,
+  onCheckReply,
+}: BookingModalProps) {
   const [name, setName] = useState("");
   const [date, setDate] = useState("2026-07-10");
-  const [time, setTime] = useState("10:00");
-  const [status, setStatus] = useState<string | null>(null);
+  const [time, setTime] = useState("");
+  const [step, setStep] = useState<Step>("details");
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const [slots, setSlots] = useState<string[] | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<BookingOut | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
   const rankedWorkshops = useMemo(() => getRankedWorkshops(), []);
   const defaultWorkshopId = useMemo(() => {
     const profileMatch = rankedWorkshops.find((workshop) => workshop.name === profile?.workshop);
@@ -44,10 +76,70 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
     if (!open) return;
     setSelectedWorkshopId(defaultWorkshopId);
     setPickerOpen(false);
-    setStatus(null);
+    setStep("details");
+    setResult(null);
+    setStatusMessage(null);
   }, [defaultWorkshopId, open]);
 
+  // Availability is driven by the user's Google Calendar: only free slots are
+  // selectable. Refetch whenever the date changes while the modal is open.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setSlotsLoading(true);
+    onGetAvailability(date)
+      .then((res) => {
+        if (cancelled) return;
+        setSlots(res.slots);
+        setTime((prev) => (res.slots.includes(prev) ? prev : res.slots[0] ?? ""));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSlots([]);
+        setTime("");
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, date, onGetAvailability]);
+
+  const handleConfirm = useCallback(async () => {
+    setSubmitting(true);
+    try {
+      const res = await onSubmit({
+        name,
+        workshop,
+        car_model: model,
+        purpose: BOOKING_PURPOSE,
+        date,
+        time,
+      });
+      setResult(res);
+      setStatusMessage(statusLabel(res));
+      setStep("status");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [date, model, name, onSubmit, time, workshop]);
+
+  const handleCheckReply = useCallback(async () => {
+    if (!result) return;
+    setChecking(true);
+    try {
+      const reply = await onCheckReply(result.booking_id);
+      setStatusMessage(reply.message);
+      setResult((prev) => (prev ? { ...prev, status: reply.status } : prev));
+    } finally {
+      setChecking(false);
+    }
+  }, [onCheckReply, result]);
+
   if (!open) return null;
+
+  const canProceed = name.trim().length > 0 && time.length > 0;
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -61,53 +153,143 @@ export function BookingModal({ open, profile, onClose, onSubmit }: BookingModalP
           <div>
             <span className="eyebrow">Official Mercedes slot</span>
             <h2>Book certified inspection</h2>
+            <span className="modal-step">
+              {step === "details" ? "Step 1 of 2 - Details" : null}
+              {step === "review" ? "Step 2 of 2 - Confirm details" : null}
+            </span>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close booking">
             x
           </button>
         </div>
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault();
-            const result = await onSubmit({
-              name,
-              workshop,
-              car_model: model,
-              purpose: BOOKING_PURPOSE,
-              date,
-              time,
-            });
-            setStatus(result.dry_run ? "Dry-run booking saved" : "Booking dispatched");
-          }}
-        >
-          <label>
-            Name
-            <input value={name} onChange={(event) => setName(event.target.value)} required />
-          </label>
-          {selectedWorkshop ? (
-            <WorkshopSelector
-              selectedWorkshop={selectedWorkshop}
-              rankedWorkshops={rankedWorkshops}
-              onOpenPicker={() => setPickerOpen(true)}
-            />
-          ) : null}
-          <label>
-            Car model
-            <input value={model} readOnly />
-          </label>
-          <label>
-            Date
-            <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
-          </label>
-          <label>
-            Time
-            <input type="time" value={time} onChange={(event) => setTime(event.target.value)} required />
-          </label>
-          <button className="primary-button" type="submit">
-            Submit booking
-          </button>
-        </form>
-        {status ? <p className="modal-status">{status}</p> : null}
+
+        {step === "details" ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canProceed) setStep("review");
+            }}
+          >
+            <label>
+              Name
+              <input value={name} onChange={(event) => setName(event.target.value)} required />
+            </label>
+            {selectedWorkshop ? (
+              <WorkshopSelector
+                selectedWorkshop={selectedWorkshop}
+                rankedWorkshops={rankedWorkshops}
+                onOpenPicker={() => setPickerOpen(true)}
+              />
+            ) : null}
+            <label>
+              Car model
+              <input value={model} readOnly />
+            </label>
+            <label>
+              Date
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Time
+              {slotsLoading ? (
+                <span className="slot-hint">Checking calendar availability...</span>
+              ) : slots && slots.length > 0 ? (
+                <select
+                  value={time}
+                  onChange={(event) => setTime(event.target.value)}
+                  required
+                >
+                  {slots.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="slot-hint">No free slots on your calendar for this date</span>
+              )}
+            </label>
+            <p className="modal-hint">Only times free on your Google Calendar are shown.</p>
+            <button className="primary-button" type="submit" disabled={!canProceed}>
+              Next
+            </button>
+          </form>
+        ) : null}
+
+        {step === "review" ? (
+          <div className="booking-review">
+            <p className="modal-hint">Review the details. Nothing is sent until you confirm.</p>
+            <dl className="booking-summary">
+              <div>
+                <dt>Name</dt>
+                <dd>{name}</dd>
+              </div>
+              <div>
+                <dt>Nearest Mercedes Workshop</dt>
+                <dd>{workshop}</dd>
+              </div>
+              <div>
+                <dt>Car model</dt>
+                <dd>{model}</dd>
+              </div>
+              <div>
+                <dt>Purpose</dt>
+                <dd>{BOOKING_PURPOSE}</dd>
+              </div>
+              <div>
+                <dt>Date</dt>
+                <dd>{date}</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>{time}</dd>
+              </div>
+            </dl>
+            <div className="booking-review__actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setStep("details")}
+                disabled={submitting}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleConfirm}
+                disabled={submitting}
+              >
+                Confirm &amp; send booking request
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {step === "status" ? (
+          <div className="booking-status">
+            {statusMessage ? <p className="modal-status">{statusMessage}</p> : null}
+            {result?.status === "sent" ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleCheckReply}
+                disabled={checking}
+              >
+                Check for confirmation
+              </button>
+            ) : null}
+            <button type="button" className="primary-button" onClick={onClose}>
+              Done
+            </button>
+          </div>
+        ) : null}
+
         {pickerOpen && selectedWorkshop ? (
           <div className="workshop-picker-shell">
             <WorkshopPicker
