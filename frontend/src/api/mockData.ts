@@ -39,6 +39,10 @@ export const demoCarFeatures: CarFeaturesIn = {
   health_score: 81.6,
 };
 
+// Mock signed-in user. Auth is out of scope for the demo, so the customer
+// identity is a fixed frontend profile used to pre-fill the booking form.
+export const demoUser = { name: "John Tan" };
+
 export const demoProfile: VehicleProfile = {
   id: 1,
   name: "Mercedes-Benz C-Class T-Modell (S205)",

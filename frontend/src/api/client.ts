@@ -143,6 +143,7 @@ export interface BookingPayload {
   calendar_event_id?: string;
   calendar_html_link?: string;
   calendar_error?: string;
+  telegram_message_id?: string | null;
   text?: string;
   error?: string;
 }
@@ -169,6 +170,17 @@ export interface BookingReplyOut {
   round: number;
   classification: string;
   message: string;
+}
+
+export interface BookingDiagnosticsOut {
+  telegram_configured: boolean;
+  telegram_webhook_configured: boolean;
+  gemini_configured: boolean;
+  calendar_write_configured: boolean;
+  calendar_read_configured: boolean;
+  calendar_id: string;
+  service_account_email: string | null;
+  freebusy_probe: string;
 }
 
 export class ApiError extends Error {
@@ -266,6 +278,10 @@ export function checkBookingReply(bookingId: number) {
   return request<BookingReplyOut>(`/booking/${bookingId}/check-reply`, {
     method: "POST",
   });
+}
+
+export function getBookingDiagnostics() {
+  return request<BookingDiagnosticsOut>("/booking/diagnostics");
 }
 
 export function makeObdStreamUrl(profileId: number, maxEvents = 100) {

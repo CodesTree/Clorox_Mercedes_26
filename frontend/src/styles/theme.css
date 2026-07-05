@@ -1310,6 +1310,67 @@ button {
   font-size: 13px;
 }
 
+.modal-status-headline {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.booking-diagnostics {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.booking-diagnostics__body {
+  display: grid;
+  gap: 12px;
+}
+
+.diagnostics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.diagnostics-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-dim);
+  vertical-align: top;
+}
+
+.diagnostics-table td:nth-child(2) {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.diagnostics-debug {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.diagnostics-debug > div {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) 1fr;
+  gap: 8px;
+}
+
+.diagnostics-debug dt {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.diagnostics-debug dd {
+  margin: 0;
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
 .workshop-field {
   position: relative;
   display: grid;

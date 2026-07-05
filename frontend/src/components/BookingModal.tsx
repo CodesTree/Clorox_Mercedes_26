@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   BookingAvailabilityOut,
+  BookingDiagnosticsOut,
   BookingOut,
   BookingReplyOut,
   VehicleProfile,
 } from "../api/client";
+import { getBookingDiagnostics } from "../api/client";
+import { demoUser } from "../api/mockData";
 import {
   currentVehicleLocation,
   formatDistanceKm,
@@ -32,11 +35,32 @@ type Step = "details" | "review" | "status";
 
 const BOOKING_PURPOSE = "Certified inspection";
 
+// The web app waits on "sent" while the workshop replies over Telegram. These
+// are the terminal states that stop the auto-poll.
+const TERMINAL_STATUSES = new Set(["booked", "failed", "dry_run"]);
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLLS = 12; // ~60s of waiting before we surface a manual retry.
+
 function statusLabel(result: BookingOut): string {
   if (result.dry_run) return "Dry-run booking saved";
   if (result.status === "sent") return "Booking request sent - awaiting confirmation";
   if (result.status === "booked") return "Booking confirmed";
   return `Booking ${result.status}`;
+}
+
+function statusHeadline(status: string | undefined): string {
+  switch (status) {
+    case "booked":
+      return "Inspection confirmed";
+    case "sent":
+      return "Awaiting booking confirmation";
+    case "failed":
+      return "No slot confirmed";
+    case "dry_run":
+      return "Dry-run booking saved";
+    default:
+      return "Booking update";
+  }
 }
 
 export function BookingModal({
@@ -47,7 +71,7 @@ export function BookingModal({
   onGetAvailability,
   onCheckReply,
 }: BookingModalProps) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(demoUser.name);
   const [date, setDate] = useState("2026-07-10");
   const [time, setTime] = useState("");
   const [step, setStep] = useState<Step>("details");
@@ -60,6 +84,12 @@ export function BookingModal({
   const [result, setResult] = useState<BookingOut | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [lastReply, setLastReply] = useState<BookingReplyOut | null>(null);
+  const [pollExhausted, setPollExhausted] = useState(false);
+  const pollCountRef = useRef(0);
+
+  const [diagnostics, setDiagnostics] = useState<BookingDiagnosticsOut | null>(null);
+  const [diagOpen, setDiagOpen] = useState(false);
 
   const rankedWorkshops = useMemo(() => getRankedWorkshops(), []);
   const defaultWorkshopId = useMemo(() => {
@@ -79,6 +109,10 @@ export function BookingModal({
     setStep("details");
     setResult(null);
     setStatusMessage(null);
+    setLastReply(null);
+    setPollExhausted(false);
+    setName(demoUser.name);
+    pollCountRef.current = 0;
   }, [defaultWorkshopId, open]);
 
   // Availability is driven by the user's Google Calendar: only free slots are
@@ -119,23 +153,78 @@ export function BookingModal({
       });
       setResult(res);
       setStatusMessage(statusLabel(res));
+      setLastReply(null);
+      setPollExhausted(false);
+      pollCountRef.current = 0;
       setStep("status");
     } finally {
       setSubmitting(false);
     }
   }, [date, model, name, onSubmit, time, workshop]);
 
-  const handleCheckReply = useCallback(async () => {
+  // Pull the latest Telegram reply once and fold it into the booking state.
+  const runCheckReply = useCallback(async () => {
     if (!result) return;
     setChecking(true);
     try {
       const reply = await onCheckReply(result.booking_id);
+      setLastReply(reply);
       setStatusMessage(reply.message);
       setResult((prev) => (prev ? { ...prev, status: reply.status } : prev));
     } finally {
       setChecking(false);
     }
   }, [onCheckReply, result]);
+
+  // Auto-poll while awaiting the workshop reply, so the UI advances to
+  // Confirmed/Rejected on its own. Stops on a terminal status or after the cap.
+  useEffect(() => {
+    if (step !== "status" || result?.status !== "sent" || pollExhausted) return;
+    let cancelled = false;
+    const timer = setInterval(() => {
+      if (cancelled) return;
+      if (pollCountRef.current >= MAX_POLLS) {
+        setPollExhausted(true);
+        return;
+      }
+      pollCountRef.current += 1;
+      void runCheckReply();
+    }, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [step, result?.status, pollExhausted, runCheckReply]);
+
+  // Live integration diagnostics for the demo panel (config + FreeBusy probe).
+  // Fetched once the booking is in flight, when the panel is on screen.
+  useEffect(() => {
+    if (step !== "status") return;
+    let cancelled = false;
+    getBookingDiagnostics()
+      .then((res) => {
+        if (!cancelled) setDiagnostics(res);
+      })
+      .catch(() => {
+        if (!cancelled) setDiagnostics(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step]);
+
+  const handleEditRetry = useCallback(() => {
+    if (lastReply) {
+      if (lastReply.proposed_date) setDate(lastReply.proposed_date);
+      if (lastReply.proposed_time) setTime(lastReply.proposed_time);
+    }
+    setResult(null);
+    setStatusMessage(null);
+    setLastReply(null);
+    setPollExhausted(false);
+    pollCountRef.current = 0;
+    setStep("details");
+  }, [lastReply]);
 
   if (!open) return null;
 
@@ -273,19 +362,66 @@ export function BookingModal({
 
         {step === "status" ? (
           <div className="booking-status">
-            {statusMessage ? <p className="modal-status">{statusMessage}</p> : null}
+            <h3 className="modal-status-headline">{statusHeadline(result?.status)}</h3>
+            {statusMessage && statusMessage !== statusHeadline(result?.status) ? (
+              <p className="modal-status">{statusMessage}</p>
+            ) : null}
+
             {result?.status === "sent" ? (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handleCheckReply}
-                disabled={checking}
-              >
-                Check for confirmation
+              <>
+                <p className="modal-hint">
+                  {pollExhausted
+                    ? "No reply yet. Keep waiting or check again."
+                    : "Waiting for the workshop to reply on Telegram..."}
+                </p>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    setPollExhausted(false);
+                    pollCountRef.current = 0;
+                    void runCheckReply();
+                  }}
+                  disabled={checking}
+                >
+                  {checking ? "Checking..." : "Check now"}
+                </button>
+              </>
+            ) : null}
+
+            {result?.status === "booked" ? (
+              <dl className="booking-summary">
+                <div>
+                  <dt>Workshop</dt>
+                  <dd>{workshop}</dd>
+                </div>
+                <div>
+                  <dt>Date</dt>
+                  <dd>{lastReply?.proposed_date || date}</dd>
+                </div>
+                <div>
+                  <dt>Time</dt>
+                  <dd>{lastReply?.proposed_time || time}</dd>
+                </div>
+              </dl>
+            ) : null}
+
+            {result?.status === "failed" ? (
+              <button type="button" className="secondary-button" onClick={handleEditRetry}>
+                Edit &amp; retry
               </button>
             ) : null}
+
+            <BookingDiagnostics
+              open={diagOpen}
+              onToggle={() => setDiagOpen((prev) => !prev)}
+              diagnostics={diagnostics}
+              result={result}
+              lastReply={lastReply}
+            />
+
             <button type="button" className="primary-button" onClick={onClose}>
-              Done
+              {result?.status === "booked" ? "Booked" : "Done"}
             </button>
           </div>
         ) : null}
@@ -304,6 +440,136 @@ export function BookingModal({
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+interface BookingDiagnosticsProps {
+  open: boolean;
+  onToggle: () => void;
+  diagnostics: BookingDiagnosticsOut | null;
+  result: BookingOut | null;
+  lastReply: BookingReplyOut | null;
+}
+
+function mark(ok: boolean, pending = false): string {
+  if (pending) return "⏳";
+  return ok ? "✅" : "❌";
+}
+
+// Developer-only panel (Phase 8): proves the Telegram round-trip end to end
+// without reading backend logs during the demo.
+function BookingDiagnostics({
+  open,
+  onToggle,
+  diagnostics,
+  result,
+  lastReply,
+}: BookingDiagnosticsProps) {
+  const messageId = result?.payload?.telegram_message_id ?? null;
+  const replyReceived = Boolean(lastReply && lastReply.classification !== "none");
+  const booked = result?.status === "booked";
+
+  const checks: { label: string; badge: string; detail: string }[] = [
+    {
+      label: "Booking Request Generated",
+      badge: mark(Boolean(result)),
+      detail: result ? `Booking #${result.booking_id}` : "Not sent",
+    },
+    {
+      label: "Telegram Message Sent",
+      badge: mark(Boolean(messageId)),
+      detail: messageId ? `Message ID ${messageId}` : "No message id",
+    },
+    {
+      label: "Awaiting Workshop Reply",
+      badge: mark(false, result?.status === "sent"),
+      detail: result?.status === "sent" ? "Polling for reply" : "Not waiting",
+    },
+    {
+      label: "Telegram Reply Received",
+      badge: mark(replyReceived),
+      detail: lastReply?.message ? lastReply.message : "No reply yet",
+    },
+    {
+      label: "Reply Parsed",
+      badge: mark(replyReceived),
+      detail: lastReply ? lastReply.classification : "-",
+    },
+    {
+      label: "Google Calendar Booking",
+      badge: mark(booked),
+      detail: booked ? "Event created" : "Pending",
+    },
+    {
+      label: "UI Updated",
+      badge: mark(Boolean(result) && result?.status !== "sent"),
+      detail: result ? `State: ${result.status}` : "-",
+    },
+  ];
+
+  return (
+    <div className="booking-diagnostics">
+      <button type="button" className="secondary-button" onClick={onToggle}>
+        {open ? "Hide" : "Show"} developer diagnostics
+      </button>
+      {open ? (
+        <div className="booking-diagnostics__body">
+          <table className="diagnostics-table">
+            <tbody>
+              {checks.map((check) => (
+                <tr key={check.label}>
+                  <td>{check.badge}</td>
+                  <td>{check.label}</td>
+                  <td>{check.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <dl className="diagnostics-debug">
+            <div>
+              <dt>Telegram configured</dt>
+              <dd>{diagnostics ? String(diagnostics.telegram_configured) : "-"}</dd>
+            </div>
+            <div>
+              <dt>Booking ID</dt>
+              <dd>{result?.booking_id ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>Message ID</dt>
+              <dd>{messageId ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>Workflow state</dt>
+              <dd>{result?.status ?? "IDLE"}</dd>
+            </div>
+            <div>
+              <dt>Last reply</dt>
+              <dd>{lastReply?.message ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>Retry round</dt>
+              <dd>{lastReply?.round ?? 0}</dd>
+            </div>
+            <div>
+              <dt>Proposed date / time</dt>
+              <dd>
+                {lastReply
+                  ? `${lastReply.proposed_date} ${lastReply.proposed_time}`
+                  : "-"}
+              </dd>
+            </div>
+            <div>
+              <dt>Calendar</dt>
+              <dd>{diagnostics?.calendar_id ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>FreeBusy probe</dt>
+              <dd>{diagnostics?.freebusy_probe ?? "-"}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
     </div>
   );
 }
