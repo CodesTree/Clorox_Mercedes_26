@@ -233,3 +233,4 @@ node_modules/
 frontend/dist/
 data/merc_engineered.csv
 .secrets
+.superpowers/
