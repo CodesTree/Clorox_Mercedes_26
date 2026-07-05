@@ -638,7 +638,7 @@ button {
 
 .component-callout--top {
   top: 26%;
-  right: 20%;
+  right: 13%;
 }
 
 .component-callout--left {
@@ -647,8 +647,8 @@ button {
 }
 
 .component-callout--lower-right {
-  top: 66%;
-  right: 8%;
+  top: 70%;
+  left: 14%;
 }
 
 .component-callout__code {
