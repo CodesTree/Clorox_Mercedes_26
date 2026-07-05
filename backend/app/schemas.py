@@ -99,6 +99,23 @@ class FaultsOut(BaseModel):
     faults: list[FaultOut]
 
 
+class RepairItemOut(BaseModel):
+    name: str
+    cost_rm: int = Field(ge=0)
+
+
+class AdvisoryInterpretOut(BaseModel):
+    recommendation: Literal["Sell", "Repair and keep"]
+    summary: str
+    horizon_years: int
+    current_value_rm: int
+    horizon_value_rm: int
+    depreciation_loss_rm: int
+    total_repair_cost_rm: int
+    repairs: list[RepairItemOut]
+    llm_used: bool = False
+
+
 class BookingIn(BaseModel):
     profile_id: int
     name: str

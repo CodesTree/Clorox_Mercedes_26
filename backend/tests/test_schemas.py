@@ -72,6 +72,21 @@ def test_faults_out():
     assert out.faults[0].code == "P0301"
 
 
+def test_advisory_interpret_out():
+    out = schemas.AdvisoryInterpretOut(
+        recommendation="Repair and keep",
+        summary="Repair and keep is recommended.",
+        horizon_years=5,
+        current_value_rm=738000,
+        horizon_value_rm=640000,
+        depreciation_loss_rm=98000,
+        total_repair_cost_rm=18400,
+        repairs=[schemas.RepairItemOut(name="Brake wear service", cost_rm=7800)],
+    )
+    assert out.llm_used is False
+    assert out.repairs[0].cost_rm == 7800
+
+
 def test_booking_roundtrip():
     b_in = schemas.BookingIn(
         profile_id=1, name="Chan", workshop="Hap Seng Star KL", car_model="SL CLASS",
