@@ -49,6 +49,8 @@ class GeminiSummaryClient:
             "Write one concise advisory summary for AssetIQ. "
             "Use the provided recommendation and numbers exactly. "
             "Do not change the recommendation. Do not invent values. "
+            "Compare only total_repair_cost_rm against depreciation_loss_rm. "
+            "Do not mention buying, acquiring, financing, or replacing assets. "
             "Mention the 5-year depreciation comparison and repair cost. "
             "Return 1-2 complete sentences. Include the recommendation, repair cost, "
             "depreciation loss, and 5-year horizon. Return plain text only.\n\n"
@@ -68,7 +70,8 @@ class GeminiSummaryClient:
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": 0.2,
-                "maxOutputTokens": 90,
+                "maxOutputTokens": 256,
+                "thinkingConfig": {"thinkingBudget": 0},
             },
         }
 

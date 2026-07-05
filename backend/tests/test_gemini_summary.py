@@ -37,7 +37,12 @@ def test_gemini_summary_posts_fact_packet_and_extracts_text(monkeypatch):
                         "content": {
                             "parts": [
                                 {"text": " Repair and keep is recommended "},
-                                {"text": "because repair cost is lower. "},
+                                {
+                                    "text": (
+                                        "because the repair cost is lower than the "
+                                        "five-year depreciation loss. "
+                                    )
+                                },
                             ]
                         }
                     }
@@ -56,10 +61,18 @@ def test_gemini_summary_posts_fact_packet_and_extracts_text(monkeypatch):
         }
     )
 
-    assert summary == "Repair and keep is recommended because repair cost is lower."
+    assert (
+        summary
+        == "Repair and keep is recommended because the repair cost is lower than the five-year depreciation loss."
+    )
     assert "models/gemini-test:generateContent" in captured["url"]
     assert "key=test-key" in captured["url"]
     assert captured["timeout"] == 3
     prompt = captured["payload"]["contents"][0]["parts"][0]["text"]
     assert "Do not change the recommendation" in prompt
+    assert "Compare only total_repair_cost_rm against depreciation_loss_rm" in prompt
+    assert "Do not mention buying, acquiring, financing, or replacing assets" in prompt
     assert '"depreciation_loss_rm": 118000' in prompt
+    generation_config = captured["payload"]["generationConfig"]
+    assert generation_config["maxOutputTokens"] >= 180
+    assert generation_config["thinkingConfig"]["thinkingBudget"] == 0
