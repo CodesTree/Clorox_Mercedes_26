@@ -299,14 +299,10 @@ button {
 }
 
 .voice-advisor {
-  position: absolute;
-  left: 50%;
-  top: 116px;
-  transform: translateX(-50%);
-  z-index: 4;
   min-height: 34px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 9px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
@@ -318,6 +314,7 @@ button {
   padding: 7px 11px;
   text-transform: uppercase;
   backdrop-filter: blur(10px);
+  margin-bottom: 14px;
 }
 
 .voice-advisor__orb {
@@ -348,12 +345,7 @@ button {
 }
 
 .voice-advisor__response {
-  position: absolute;
-  left: 50%;
-  top: 160px;
-  transform: translateX(-50%);
-  z-index: 4;
-  max-width: min(560px, calc(100vw - 32px));
+  max-width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(7, 11, 12, 0.78);
@@ -363,6 +355,7 @@ button {
   padding: 10px 12px;
   text-align: center;
   backdrop-filter: blur(10px);
+  margin-bottom: 14px;
 }
 
 .voice-advisor__response small {
@@ -370,6 +363,62 @@ button {
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 11px;
+}
+
+.voice-visualizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 16px;
+}
+
+.voice-visualizer__bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.voice-visualizer--idle .voice-visualizer__bar {
+  height: 10px;
+  animation: voice-visualizer-idle 1.6s ease-in-out infinite;
+}
+
+.voice-visualizer--idle .voice-visualizer__bar:nth-child(2),
+.voice-visualizer--idle .voice-visualizer__bar:nth-child(6) {
+  animation-delay: 0.15s;
+}
+
+.voice-visualizer--idle .voice-visualizer__bar:nth-child(3),
+.voice-visualizer--idle .voice-visualizer__bar:nth-child(5) {
+  animation-delay: 0.3s;
+}
+
+.voice-visualizer--idle .voice-visualizer__bar:nth-child(4) {
+  animation-delay: 0.45s;
+}
+
+@keyframes voice-visualizer-idle {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleY(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.voice-advisor__debug {
+  margin-top: 10px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #0f0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  max-width: 100%;
 }
 
 .dock-button {
@@ -1673,7 +1722,6 @@ button {
   .value-header,
     .telemetry-rail,
     .component-dock,
-    .voice-advisor,
     .car-stage,
     .component-detail,
     .cta-cluster,
@@ -1691,10 +1739,6 @@ button {
     justify-items: stretch;
     justify-content: flex-start;
     padding-bottom: 4px;
-  }
-
-  .voice-advisor {
-    justify-self: center;
   }
 
   .dock-button,
