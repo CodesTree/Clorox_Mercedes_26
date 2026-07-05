@@ -48,17 +48,29 @@ export function AdvisoryModal({
 }: AdvisoryModalProps) {
   if (!open) return null;
 
-  const totalRepairCost = repairBundle.reduce((sum, item) => sum + item.costRm, 0);
+  const totalRepairCost = repairBundle.reduce(
+    (sum, item) => sum + item.costRm,
+    0,
+  );
   const currentValue = prediction?.value_rm ?? 738000;
-  const comparisonMonths = 18;
+  const comparisonMonths = 36;
   const comparisonPoint =
     depreciation?.[Math.min(depreciation.length - 1, 2)] ??
-    ({ year: 2028, value_rm: Math.round(currentValue * 0.86), retained_pct: 0.86 } satisfies DepreciationPoint);
+    ({
+      year: 2028,
+      value_rm: Math.round(currentValue * 0.86),
+      retained_pct: 0.86,
+    } satisfies DepreciationPoint);
   const depreciationLoss = Math.max(0, currentValue - comparisonPoint.value_rm);
   const advantage = Math.max(0, depreciationLoss - totalRepairCost);
   const health = snapshot?.health ?? 87;
-  const confidence = clamp(Math.round((prediction?.confidence ?? 0.72) * 78 + health * 0.22), 55, 92);
-  const recommendation = advantage > 0 && health >= 65 ? "Repair & keep" : "Sell or inspect first";
+  const confidence = clamp(
+    Math.round((prediction?.confidence ?? 0.72) * 78 + health * 0.22),
+    55,
+    92,
+  );
+  const recommendation =
+    advantage > 0 && health >= 65 ? "Repair & keep" : "Sell or inspect first";
   const marketSignal =
     market?.delta_pct !== null && market?.delta_pct !== undefined
       ? `${Math.abs(market.delta_pct * 100).toFixed(1)}% ${market.delta_pct >= 0 ? "above" : "below"} market`
@@ -66,7 +78,12 @@ export function AdvisoryModal({
 
   return (
     <div className="modal-backdrop advisory-backdrop" role="presentation">
-      <section className="advisory-modal" role="dialog" aria-modal="true" aria-label="AssetIQ advisory">
+      <section
+        className="advisory-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="AssetIQ advisory"
+      >
         <div className="modal-header advisory-modal__header">
           <div>
             <span className="wordmark advisory-wordmark">
@@ -78,16 +95,28 @@ export function AdvisoryModal({
               AssetIQ Advisory
             </span>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close advisory">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label="Close advisory"
+          >
             x
           </button>
         </div>
 
-        <VoiceAdvisor pendingVoiceAction={pendingVoiceAction} onPendingVoiceActionHandled={onPendingVoiceActionHandled} />
+        <VoiceAdvisor
+          pendingVoiceAction={pendingVoiceAction}
+          onPendingVoiceActionHandled={onPendingVoiceActionHandled}
+        />
 
         <div className="advisory-hero">
           <div className="advisory-hero__badge" aria-hidden="true">
-            <svg className="advisory-hero__emblem" viewBox="0 0 96 96" focusable="false">
+            <svg
+              className="advisory-hero__emblem"
+              viewBox="0 0 96 96"
+              focusable="false"
+            >
               <circle cx="48" cy="48" r="38" />
               <path d="M48 17v35" />
               <path d="M48 52 22 70" />
@@ -102,28 +131,49 @@ export function AdvisoryModal({
             </h2>
             <div className="advisory-metrics">
               <strong>{confidence}% confidence</strong>
-              <strong>{formatCompactRm(advantage)} advantage</strong>
+              <strong>{formatCompactRm(40000)} advantage</strong>
               <span>{marketSignal}</span>
             </div>
           </div>
         </div>
 
         <div className="advisory-grid">
-          <section className="advisory-card advisory-chart" aria-label="Repair cost versus vehicle value">
+          <section
+            className="advisory-card advisory-chart"
+            aria-label="Repair cost versus vehicle value"
+          >
             <h3>Repair Cost vs Vehicle Value</h3>
             <div className="advisory-chart__toolbar">
               <span>RM (Thousands)</span>
               <div className="advisory-chart__legend" aria-hidden="true">
-                <span><i className="legend-resale" />Resale value</span>
-                <span><i className="legend-repair" />Repair cost</span>
-                <span><i className="legend-net" />Net keep value</span>
+                <span>
+                  <i className="legend-resale" />
+                  Resale value
+                </span>
+                <span>
+                  <i className="legend-repair" />
+                  Repair cost
+                </span>
+                <span>
+                  <i className="legend-net" />
+                  Net keep value
+                </span>
               </div>
             </div>
-            <svg viewBox="0 0 720 240" role="img" aria-label="Mock advisory value graph">
-
+            <svg
+              viewBox="0 0 720 240"
+              role="img"
+              aria-label="Mock advisory value graph"
+            >
               {[800, 600, 400, 200, 0].map((tick, index) => (
                 <g key={tick}>
-                  <line x1="58" x2="650" y1={42 + index * 34} y2={42 + index * 34} className="advisory-grid-line" />
+                  <line
+                    x1="58"
+                    x2="650"
+                    y1={42 + index * 34}
+                    y2={42 + index * 34}
+                    className="advisory-grid-line"
+                  />
                   <text x="24" y={47 + index * 34} className="advisory-tick">
                     {tick}
                   </text>
@@ -133,16 +183,39 @@ export function AdvisoryModal({
                 const x = 58 + (month / 36) * 592;
                 return (
                   <g key={month}>
-                    <line x1={x} x2={x} y1="42" y2="178" className="advisory-grid-line advisory-grid-line--vertical" />
-                    <text x={x} y="206" textAnchor="middle" className="advisory-tick">
+                    <line
+                      x1={x}
+                      x2={x}
+                      y1="42"
+                      y2="178"
+                      className="advisory-grid-line advisory-grid-line--vertical"
+                    />
+                    <text
+                      x={x}
+                      y="206"
+                      textAnchor="middle"
+                      className="advisory-tick"
+                    >
                       {month}
                     </text>
                   </g>
                 );
               })}
 
-              <line x1="58" y1="178" x2="650" y2="178" className="advisory-axis" />
-              <line x1="58" y1="42" x2="58" y2="178" className="advisory-axis" />
+              <line
+                x1="58"
+                y1="178"
+                x2="650"
+                y2="178"
+                className="advisory-axis"
+              />
+              <line
+                x1="58"
+                y1="42"
+                x2="58"
+                y2="178"
+                className="advisory-axis"
+              />
               <path
                 d="M 58 53 C 150 64 202 84 264 96 C 352 112 424 128 492 139 C 550 149 602 154 650 158"
                 className="advisory-line advisory-line--resale"
@@ -156,31 +229,59 @@ export function AdvisoryModal({
                 className="advisory-line advisory-line--net"
               />
 
-              <line x1="270" y1="42" x2="270" y2="178" className="advisory-review-line" />
+              <line
+                x1="270"
+                y1="42"
+                x2="270"
+                y2="178"
+                className="advisory-review-line"
+              />
               <circle cx="270" cy="96" r="8" className="advisory-dot" />
-              <circle cx="270" cy="116" r="6" className="advisory-dot advisory-dot--muted" />
-              <rect x="300" y="54" width="184" height="34" rx="8" className="advisory-callout-box" />
+              <circle
+                cx="270"
+                cy="116"
+                r="6"
+                className="advisory-dot advisory-dot--muted"
+              />
+              <rect
+                x="300"
+                y="54"
+                width="184"
+                height="34"
+                rx="8"
+                className="advisory-callout-box"
+              />
               <text x="316" y="76" className="advisory-callout">
                 Break-even: Month 14
               </text>
 
-              <text x="354" y="232" textAnchor="middle" className="advisory-axis-label advisory-axis-label--months">
+              <text
+                x="354"
+                y="232"
+                textAnchor="middle"
+                className="advisory-axis-label advisory-axis-label--months"
+              >
                 Months
               </text>
             </svg>
           </section>
 
-          <section className="advisory-card advisory-insight" aria-label="Gemini insight">
+          <section
+            className="advisory-card advisory-insight"
+            aria-label="Gemini insight"
+          >
             <div className="panel-heading">
               <span>Gemini insight</span>
             </div>
             <p>
-              Repairing now is projected to protect resale value over the next {comparisonMonths} months.
-              The estimated repair bundle is lower than the expected depreciation loss.
+              Repairing now is projected to protect resale value over the next{" "}
+              {comparisonMonths} months. The estimated repair bundle is lower
+              than the expected depreciation loss.
             </p>
             <p>
-              Watch battery and brake wear first. Current vehicle health is {health}/100 with {faults.length} ODX
-              signal{faults.length === 1 ? "" : "s"}.
+              Watch battery and brake wear first. Current vehicle health is{" "}
+              {health}/100 with {faults.length} ODX signal
+              {faults.length === 1 ? "" : "s"}.
             </p>
             <div className="advisory-tags">
               <span>Low short-term risk</span>
@@ -191,14 +292,22 @@ export function AdvisoryModal({
         </div>
 
         <div className="advisory-actions">
-          <button type="button" className="advisory-action" onClick={onBookInspection}>
+          <button
+            type="button"
+            className="advisory-action"
+            onClick={onBookInspection}
+          >
             <strong>Book inspection</strong>
             <span>Schedule certified inspection at nearest workshop.</span>
           </button>
-          <button type="button" className="advisory-action advisory-action--repair">
+          <button
+            type="button"
+            className="advisory-action advisory-action--repair"
+          >
             <strong>View repair priorities</strong>
             <span>
-              {formatRm(totalRepairCost)} bundle from hard-coded telemetry assumptions.
+              {formatRm(totalRepairCost)} bundle from hard-coded telemetry
+              assumptions.
             </span>
           </button>
           <button type="button" className="advisory-action">
@@ -208,7 +317,10 @@ export function AdvisoryModal({
         </div>
 
         <div className="advisory-footnote">
-          {profile ? `${profile.year} ${profile.name}` : "Demo Mercedes profile"} - mock advisory output for frontend review
+          {profile
+            ? `${profile.year} ${profile.name}`
+            : "Demo Mercedes profile"}{" "}
+          - mock advisory output for frontend review
         </div>
       </section>
     </div>
