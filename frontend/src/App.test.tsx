@@ -12,6 +12,12 @@ vi.mock("./scene/CarScene", () => ({
   ),
 }));
 
+vi.mock("./components/VoiceAdvisor", () => ({
+  VoiceAdvisor: ({ pendingVoiceAction }: { pendingVoiceAction: string | null }) => (
+    <div data-testid="voice-advisor-stub">{pendingVoiceAction ?? "none"}</div>
+  ),
+}));
+
 const profile = {
   id: 1,
   name: "Mercedes-Benz C-Class T-Modell (S205)",
@@ -323,4 +329,22 @@ test("falls back to OBD polling when the SSE stream errors", async () => {
   expect(stream.close).toHaveBeenCalled();
   const callsAfterError = fetchMock.mock.calls.filter(([url]) => String(url).includes("/obd/snapshot")).length;
   expect(callsAfterError).toBeGreaterThan(callsBeforeError);
+});
+
+test("does not render VoiceAdvisor on the dashboard", async () => {
+  render(<App />);
+
+  await screen.findByText(/Mercedes-Benz C-Class T-Modell \(S205\)/);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("voice-advisor-stub")).not.toBeInTheDocument();
+});
+
+test("opens the Advisory modal and queues a greet action on Alt+A when closed", async () => {
+  render(<App />);
+
+  await screen.findByText(/Mercedes-Benz C-Class T-Modell \(S205\)/);
+  fireEvent.keyDown(window, { key: "a", altKey: true });
+
+  const modal = await screen.findByRole("dialog", { name: "AssetIQ advisory" });
+  expect(within(modal).getByTestId("voice-advisor-stub")).toHaveTextContent("greet");
 });
