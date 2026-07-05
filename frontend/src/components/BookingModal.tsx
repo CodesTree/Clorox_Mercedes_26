@@ -18,6 +18,8 @@ import {
 interface BookingModalProps {
   open: boolean;
   profile: VehicleProfile | null;
+  activeBooking: BookingOut | null;
+  onBookingChange: (booking: BookingOut | null) => void;
   onClose: () => void;
   onSubmit: (form: {
     name: string;
@@ -66,6 +68,8 @@ function statusHeadline(status: string | undefined): string {
 export function BookingModal({
   open,
   profile,
+  activeBooking,
+  onBookingChange,
   onClose,
   onSubmit,
   onGetAvailability,
@@ -102,18 +106,38 @@ export function BookingModal({
   const workshop = selectedWorkshop?.name ?? profile?.workshop ?? "Hap Seng Star KL";
   const model = profile?.name ?? profile?.model ?? "Mercedes-AMG GT";
 
+  // On open, resume an already in-flight/completed booking instead of
+  // blowing it away: reopening the modal must not let the user start a
+  // second concurrent booking while one is pending (and stale duplicate
+  // bookings break Telegram reply matching - see MAIN.md booking notes).
+  // `activeBooking` is intentionally left out of the dependency array: this
+  // should only decide details-vs-status at the moment the modal opens, not
+  // re-run on every parent-side update while it's already open.
   useEffect(() => {
     if (!open) return;
     setSelectedWorkshopId(defaultWorkshopId);
     setPickerOpen(false);
-    setStep("details");
-    setResult(null);
-    setStatusMessage(null);
     setLastReply(null);
     setPollExhausted(false);
     setName(demoUser.name);
     pollCountRef.current = 0;
+    if (activeBooking) {
+      setResult(activeBooking);
+      setStatusMessage(statusLabel(activeBooking));
+      setStep("status");
+    } else {
+      setResult(null);
+      setStatusMessage(null);
+      setStep("details");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultWorkshopId, open]);
+
+  // Mirror the local booking result up to the parent so the main dashboard
+  // CTA can reflect it (and it survives the modal being closed/reopened).
+  useEffect(() => {
+    onBookingChange(result);
+  }, [result, onBookingChange]);
 
   // Availability is driven by the user's Google Calendar: only free slots are
   // selectable. Refetch whenever the date changes while the modal is open.
