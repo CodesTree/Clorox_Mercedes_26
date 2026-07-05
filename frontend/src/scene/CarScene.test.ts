@@ -120,7 +120,7 @@ test("dashboard visual system matches Claude cinematic stage v2", () => {
   expect(themeCss).toMatch(/\.stage-border\s*{[^}]*border-radius:\s*12px;/s);
   expect(themeCss).toMatch(/\.component-callout,\s*\.depreciation-panel,\s*\.booking-modal\s*{[^}]*border-radius:\s*16px;/s);
   expect(themeCss).toMatch(/\.dock-button\s*{[^}]*border-radius:\s*14px;/s);
-  expect(themeCss).toMatch(/\.component-callout--top\s*{[^}]*left:\s*50%;/s);
+  expect(themeCss).toMatch(/\.component-callout--top\s*{[^}]*right:\s*20%;/s);
   expect(themeCss).toMatch(/\.component-callout--left\s*{[^}]*left:\s*14%;/s);
   expect(themeCss).toMatch(/\.component-callout--lower-right\s*{[^}]*right:\s*8%;/s);
   expect(themeCss).toMatch(/\.depreciation-panel\s*{[^}]*right:\s*26px;[^}]*bottom:\s*26px;/s);
@@ -129,8 +129,8 @@ test("dashboard visual system matches Claude cinematic stage v2", () => {
 test("component callout cards anchor to 3 fixed points and fade in", () => {
   expect(themeCss).toMatch(/@keyframes callout-in\s*{[^}]*opacity:\s*0;/s);
   expect(themeCss).toMatch(/\.component-callout\s*{[^}]*animation:\s*callout-in\s+180ms\s+ease-out;/s);
-  expect(themeCss).toMatch(/\.component-callout--top\s*{[^}]*top:\s*14%;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/s);
-  expect(themeCss).toMatch(/\.component-callout--left\s*{[^}]*top:\s*48%;[^}]*left:\s*14%;/s);
+  expect(themeCss).toMatch(/\.component-callout--top\s*{[^}]*top:\s*26%;[^}]*right:\s*20%;/s);
+  expect(themeCss).toMatch(/\.component-callout--left\s*{[^}]*top:\s*26%;[^}]*left:\s*14%;/s);
   expect(themeCss).toMatch(/\.component-callout--lower-right\s*{[^}]*top:\s*66%;[^}]*right:\s*8%;/s);
 });
 

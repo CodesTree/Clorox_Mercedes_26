@@ -637,13 +637,12 @@ button {
 }
 
 .component-callout--top {
-  top: 14%;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 26%;
+  right: 20%;
 }
 
 .component-callout--left {
-  top: 48%;
+  top: 26%;
   left: 14%;
 }
 
