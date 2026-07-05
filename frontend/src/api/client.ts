@@ -180,6 +180,8 @@ export interface AdvisoryVoiceResponse {
   text_provider: "gemini" | "local";
   tts_wait_ms: number;
   gemini_key_detected: boolean;
+}
+
 export interface BookingAvailabilityOut {
   date: string;
   slots: string[];
@@ -312,6 +314,9 @@ export function respondToAdvisoryVoice(question: string, advisory: AdvisoryData)
     console.log("[voice] fallback_reason:", response.fallback_reason);
     console.log("[voice] audio_base64 length:", response.audio_base64?.length ?? 0);
     return response;
+  });
+}
+
 export function getBookingAvailability(date: string) {
   return request<BookingAvailabilityOut>("/booking/availability", undefined, { date });
 }
