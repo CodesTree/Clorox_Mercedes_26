@@ -138,3 +138,29 @@ test("speaking guard prevents overlapping speech", () => {
   expect(getIsSpeaking()).toBe(true);
   expect(speakAssistant(options)).toBe(false);
 });
+
+test("passes the created Audio element to onAudioElement before playback starts", () => {
+  const play = vi.fn().mockResolvedValue(undefined);
+  stubBlobUrls();
+  vi.stubGlobal(
+    "Audio",
+    vi.fn().mockImplementation(() => ({ play, pause: vi.fn(), currentTime: 0 })),
+  );
+  let receivedElement: unknown = null;
+
+  const started = speakAssistant({
+    text: "Trade in now.",
+    audioBase64: "UklGRg==",
+    mimeType: "audio/wav",
+    onStart: vi.fn(),
+    onEnd: vi.fn(),
+    onPlaybackError: vi.fn(),
+    onAudioElement: (element) => {
+      receivedElement = element;
+    },
+  });
+
+  expect(started).toBe(true);
+  expect(receivedElement).not.toBeNull();
+  expect(play).toHaveBeenCalled();
+});
