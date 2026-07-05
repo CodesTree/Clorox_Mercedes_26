@@ -12,13 +12,14 @@ listings.
 
 ## Consumes
 
-- `training_data`, `market_listings` table schemas (Phase 00).
+- `training_data`, `market_listings`, `vehicle_specs` table schemas (Phase 00/Phase 01 extension).
 - `FX_GBP_TO_RM`, `SCRAPER_USER_AGENT`, `SCRAPER_RATE_LIMIT_SECONDS` from `.env`.
 
 ## Produces
 
 - `ml/ingest.py` → populated `training_data`.
 - `scraper/` package → populated `market_listings`.
+- `scraper/ultimatespecs.py` stores optional approved-source technical specs in `vehicle_specs`.
 - A **Gate-1 report** (design + live sample results).
 
 ## Part A — Ingest (`ml/ingest.py`)
@@ -90,3 +91,21 @@ Emit a summary: rows in, rows dropped (by reason), rows written, RM price range.
 - After an approved sample run, `market_listings` holds only real Mercedes listings; every row
   traces to a `listing_url`.
 - No synthetic/AI-generated rows anywhere. Connection string never printed by ingest or scraper.
+
+## Addendum - Approved Vehicle Specs (`vehicle_specs`)
+
+Phase 02 may need engineering specs that marketplace listings do not reliably provide. These specs
+must stay separate from `training_data` and `market_listings`.
+
+**`scraper/ultimatespecs.py` - UltimateSpecs technical-spec ingester:**
+- Target only manually approved Mercedes-Benz C-Class / C200 UltimateSpecs detail pages.
+- Use the shared polite fetcher before live fetches: configured `SCRAPER_USER_AGENT`, robots.txt,
+  crawl-delay, rate limit, cache, and no anti-bot bypass.
+- Fixture mode parses saved HTML with zero network.
+- Write only to `vehicle_specs`: source/source_url, make/model/variant/generation/year range,
+  engine, transmission, brakes, suspension, boot, seats, doors, torque, 0-100, fuel type.
+- Keep marketplace-only fields such as mileage and price in `market_listings`.
+
+**`scraper/export_joined_specs.py`** provides a read-only CSV projection for Phase 02 by joining
+market listings to approved specs where model + variant + year allow an exact match. If a variant
+match is not explicit, specs remain unmatched rather than guessed.

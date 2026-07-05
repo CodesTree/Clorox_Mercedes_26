@@ -15,7 +15,7 @@ EXPECTED_TABLES = {
 }
 
 
-def test_all_five_tables_create_on_temp_sqlite(tmp_path: Path):
+def test_all_tables_create_on_temp_sqlite(tmp_path: Path):
     engine = create_engine(f"sqlite:///{(tmp_path / 'orm.db').as_posix()}")
     orm.Base.metadata.create_all(engine)
     assert set(inspect(engine).get_table_names()) == EXPECTED_TABLES

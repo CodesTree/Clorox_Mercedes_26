@@ -112,7 +112,7 @@ class GoogleCalendarService:
         if self._event_inserter is not None:
             response = self._event_inserter(self.settings.google_calendar_id, event)
         else:
-            response = self._insert_event(self.settings.google_calendar_id, event)
+            response = self.insert_event(self.settings.google_calendar_id, event)
 
         event_id = response.get("id") if isinstance(response, dict) else None
         if not event_id:
@@ -121,7 +121,13 @@ class GoogleCalendarService:
         html_link = response.get("htmlLink") if isinstance(response, dict) else None
         return CalendarEventResult(event_id=str(event_id), html_link=html_link)
 
-    def _insert_event(self, calendar_id: str, event: dict[str, Any]) -> dict[str, Any]:
+    def insert_event(self, calendar_id: str, event: dict[str, Any]) -> dict[str, Any]:
+        """Insert a pre-built event payload into the given calendar.
+
+        Public so callers with their own payload-building logic (e.g. the
+        Telegram-confirmation calendar agent) can reuse this credential/SDK
+        plumbing instead of duplicating it.
+        """
         try:
             from google.oauth2 import service_account
             from googleapiclient.discovery import build
