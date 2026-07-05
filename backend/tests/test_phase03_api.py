@@ -278,7 +278,9 @@ def test_booking_persists_and_returns_dry_run_payload_without_keys():
     assert body["status"] == "dry_run"
     assert body["dispatched"] is False
     assert body["dry_run"] is True
-    assert body["payload"]["text"].count("Certified inspection") == 1
+    # /booking dispatches via Telegram (see tests/05_agents_tests/test_booking_route.py);
+    # with no Telegram credentials configured it falls back to dry-run without a payload.
+    assert body["payload"] is None
 
     with SessionLocal() as session:
         row = session.get(orm.Booking, body["booking_id"])

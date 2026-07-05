@@ -47,6 +47,46 @@ class PredictOut(BaseModel):
     currency: Literal["RM"] = "RM"
 
 
+class CarFeaturesIn(BaseModel):
+    """Full feature payload for the /predict/obd demo (mock OBD-II + car specs).
+
+    Mirrors the columns the RF price model was trained on
+    (see backend/ml/artifacts/price_model_meta.json). Numeric fields are floats so the
+    demo JSON round-trips cleanly; the OBD-II block is the last six fields.
+    """
+
+    # --- car specs ---
+    model_class: str
+    year: float
+    mileage: float
+    transmission: str
+    fuel_type: str
+    engine_size: float
+    source_market: str
+    age: float
+    variant: str
+    displacement_cc: float
+    n_cylinders: float
+    n_gears: float
+    top_speed_kmh: float
+    torque_nm: float
+    accel_0_100_s: float
+    boot_l: float
+    engine_config: str
+    aspiration: str
+    gear_type: str
+    front_brake: str
+    rear_brake: str
+    match_level: str
+    # --- simulated OBD-II / vehicle-health block ---
+    battery_soh: float
+    trans_adapt_offset: float
+    estimated_annual_mileage: float
+    dtc_fault_count: float
+    brake_life_pct: float
+    health_score: float
+
+
 class MarketListingOut(BaseModel):
     model_config = {"from_attributes": True}
 
