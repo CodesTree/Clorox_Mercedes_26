@@ -8,19 +8,18 @@ import {
   getHealth,
   getMarketComps,
   getObdSnapshot,
-  getVehicleProfile,
   isModelUnavailable,
   makeObdStreamUrl,
-  predict,
+  predictObd,
   type DepreciationOut,
   type FaultOut,
   type MarketCompsOut,
   type ObdSnapshotOut,
   type PredictOut,
   type VehicleProfile,
-  type VehicleProfileIn,
 } from "./api/client";
 import {
+  demoCarFeatures,
   demoDepreciation,
   demoFaults,
   demoMarket,
@@ -64,41 +63,8 @@ const initialDashboard: DashboardState = {
 
 const OBD_POLL_INTERVAL_MS = 5000;
 
-function toPredictionPayload(profile: VehicleProfile): VehicleProfileIn {
-  return {
-    model: profile.model,
-    year: profile.year,
-    mileage: profile.mileage,
-    transmission: profile.transmission,
-    fuel_type: profile.fuel_type,
-    engine_size: profile.engine_size,
-    mpg: profile.mpg,
-    tax: profile.tax,
-    service_history_count: profile.service_history_count,
-    service_history_total: profile.service_history_total,
-  };
-}
-
 function isOffline(error: unknown) {
   return !isModelUnavailable(error);
-}
-
-function isPlaceholderProfile(profile: VehicleProfile) {
-  const model = profile.model.trim().toLowerCase();
-  return model === "string" || (profile.year === 1970 && profile.mileage === 0);
-}
-
-function normalizeProfile(profile: VehicleProfile): VehicleProfile {
-  if (!isPlaceholderProfile(profile)) {
-    return profile;
-  }
-
-  return {
-    ...demoProfile,
-    id: profile.id,
-    created_at: profile.created_at,
-    updated_at: profile.updated_at,
-  };
 }
 
 export default function App() {
@@ -124,19 +90,14 @@ export default function App() {
     let active = true;
 
     async function loadDashboard() {
-      let profile = demoProfile;
-      try {
-        profile = normalizeProfile(await getVehicleProfile(1));
-      } catch {
-        setApiStatus("offline");
-      }
+      const profile = demoProfile;
 
       const [snapshotResult, faultsResult, marketResult, predictionResult, depreciationResult] =
         await Promise.allSettled([
           getObdSnapshot(profile.id),
           getFaults(profile.id),
           getMarketComps(profile.model, profile.year),
-          predict(toPredictionPayload(profile)),
+          predictObd(demoCarFeatures),
           getDepreciation(profile.id, 5),
         ]);
 

@@ -14,15 +14,15 @@ vi.mock("./scene/CarScene", () => ({
 
 const profile = {
   id: 1,
-  name: "Mercedes-AMG GT 63 S 4MATIC+",
-  model: "AMG GT 63 S",
-  year: 2021,
-  mileage: 45320,
+  name: "Mercedes-Benz C-Class T-Modell (S205)",
+  model: "C",
+  year: 2017,
+  mileage: 99300,
   transmission: "Automatic",
-  fuel_type: "Petrol V8",
-  engine_size: 4.0,
-  mpg: 24.2,
-  tax: 3880,
+  fuel_type: "Diesel",
+  engine_size: 2.143,
+  mpg: null,
+  tax: null,
   service_history_count: 6,
   service_history_total: 7,
   service_history_max: 7,
@@ -37,7 +37,7 @@ const snapshot = {
   coolant_c: 76,
   battery_v: 12.7,
   health: 87,
-  odo_km: 45320,
+  odo_km: 99300,
   simulated: true,
   ts: "2026-07-03T00:00:00Z",
 };
@@ -92,20 +92,20 @@ function mockFetch(options: { modelUnavailable?: boolean; placeholderProfile?: b
       if (path.includes("/market/comps")) {
         return response({
           comps: [],
-          median_rm: 721000,
-          delta_pct: 0.024,
-          n: 12,
+          median_rm: null,
+          delta_pct: null,
+          n: 0,
         });
       }
-      if (path.includes("/predict")) {
+      if (path.includes("/predict/obd")) {
         if (options.modelUnavailable) {
           return response({ detail: "train model first: python -m ml.train" }, false, 503);
         }
         return response({
-          value_rm: 738000,
-          low_rm: 712000,
-          high_rm: 765000,
-          confidence: 0.92,
+          value_rm: 117668,
+          low_rm: 89145,
+          high_rm: 146191,
+          confidence: 0.758,
           currency: "RM",
         });
       }
@@ -115,9 +115,9 @@ function mockFetch(options: { modelUnavailable?: boolean; placeholderProfile?: b
         }
         return response({
           points: [
-            { year: 2021, value_rm: 1798000, retained_pct: 1 },
+            { year: 2017, value_rm: 1798000, retained_pct: 1 },
             { year: 2023, value_rm: 1052000, retained_pct: 0.59 },
-            { year: 2026, value_rm: 738000, retained_pct: 0.41 },
+            { year: 2026, value_rm: 117668, retained_pct: 0.41 },
             { year: 2028, value_rm: 640000, retained_pct: 0.36 },
           ],
         });
@@ -164,7 +164,8 @@ test("renders the Phase 04 cinematic dashboard layout with API-fed values", asyn
   render(<App />);
 
   expect(screen.getByTestId("wordmark-star")).toBeInTheDocument();
-  expect(await screen.findByText(/738,000/)).toBeInTheDocument();
+  expect(await screen.findByText(/117,668/)).toBeInTheDocument();
+  expect(screen.getByText(/2017 - Mercedes-Benz C-Class T-Modell \(S205\) - 99,300 km/i)).toBeInTheDocument();
   expect(screen.getByLabelText("Live OBD-II rail")).toBeInTheDocument();
   expect(screen.getByText("853")).toBeInTheDocument();
   expect(screen.getByText("12.7")).toBeInTheDocument();
@@ -246,7 +247,7 @@ test("booking modal only offers free calendar slots and requires human approval 
   expect(requestBody).toMatchObject({
     name: "Test User",
     workshop: "NZ Wheels Bangsar",
-    car_model: "Mercedes-AMG GT 63 S 4MATIC+",
+    car_model: "Mercedes-Benz C-Class T-Modell (S205)",
     purpose: "Certified inspection",
     time: "10:00",
   });
@@ -262,13 +263,15 @@ test("shows graceful placeholders when valuation models are not trained", async 
   expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
 });
 
-test("uses the polished demo vehicle when the backend profile is still the Swagger placeholder", async () => {
+test("uses the C-Class mock car and OBD-aware prediction endpoint", async () => {
   mockFetch({ placeholderProfile: true });
 
   render(<App />);
 
-  expect(await screen.findByText(/Mercedes-AMG GT 63 S 4MATIC/)).toBeInTheDocument();
-  expect(screen.queryByText(/1970 - Demo Mercedes SL-Class - 0 km/i)).not.toBeInTheDocument();
+  expect(await screen.findByText(/Mercedes-Benz C-Class T-Modell \(S205\)/)).toBeInTheDocument();
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("/vehicle/profile"))).toBe(false);
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("/predict/obd"))).toBe(true);
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/api/predict"))).toBe(false);
 });
 
 test("falls back to OBD polling when the SSE stream errors", async () => {
@@ -291,7 +294,7 @@ test("falls back to OBD polling when the SSE stream errors", async () => {
   vi.stubGlobal("EventSource", FakeEventSource);
   render(<App />);
 
-  await screen.findByText(/Mercedes-AMG GT 63 S 4MATIC/);
+  await screen.findByText(/Mercedes-Benz C-Class T-Modell \(S205\)/);
   const stream = streamRef.current;
   if (!stream) {
     throw new Error("Expected dashboard to open the OBD EventSource stream");

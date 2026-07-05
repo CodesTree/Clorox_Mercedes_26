@@ -39,6 +39,37 @@ export type VehicleProfileIn = Pick<
   | "service_history_total"
 >;
 
+export interface CarFeaturesIn {
+  model_class: string;
+  year: number;
+  mileage: number;
+  transmission: string;
+  fuel_type: string;
+  engine_size: number;
+  source_market: string;
+  age: number;
+  variant: string;
+  displacement_cc: number;
+  n_cylinders: number;
+  n_gears: number;
+  top_speed_kmh: number;
+  torque_nm: number;
+  accel_0_100_s: number;
+  boot_l: number;
+  engine_config: string;
+  aspiration: string;
+  gear_type: string;
+  front_brake: string;
+  rear_brake: string;
+  match_level: string;
+  battery_soh: number;
+  trans_adapt_offset: number;
+  estimated_annual_mileage: number;
+  dtc_fault_count: number;
+  brake_life_pct: number;
+  health_score: number;
+}
+
 export interface PredictOut {
   value_rm: number;
   low_rm: number;
@@ -206,6 +237,13 @@ export function predict(profile: VehicleProfileIn) {
   return request<PredictOut>("/predict", {
     method: "POST",
     body: JSON.stringify(profile),
+  });
+}
+
+export function predictObd(features: CarFeaturesIn) {
+  return request<PredictOut>("/predict/obd", {
+    method: "POST",
+    body: JSON.stringify(features),
   });
 }
 
