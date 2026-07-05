@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
@@ -51,6 +52,7 @@ class GeminiSummaryClient:
             "Do not change the recommendation. Do not invent values. "
             "Compare only total_repair_cost_rm against depreciation_loss_rm. "
             "Do not mention buying, acquiring, financing, or replacing assets. "
+            "Format RM currency with a space after RM and comma separators, for example RM 18,400. "
             "Mention the 5-year depreciation comparison and repair cost. "
             "Return 1-2 complete sentences. Include the recommendation, repair cost, "
             "depreciation loss, and 5-year horizon. Return plain text only.\n\n"
@@ -91,4 +93,12 @@ def _extract_text(body: dict[str, Any]) -> str | None:
     if len(text.split()) < 12:
         return None
 
-    return text or None
+    return _format_rm_currency(text) or None
+
+
+def _format_rm_currency(text: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        amount = int(match.group(1).replace(",", ""))
+        return f"RM {amount:,}"
+
+    return re.sub(r"\bRM\s*([0-9][0-9,]*)\b", replace, text)

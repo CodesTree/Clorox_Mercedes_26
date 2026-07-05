@@ -72,7 +72,46 @@ def test_gemini_summary_posts_fact_packet_and_extracts_text(monkeypatch):
     assert "Do not change the recommendation" in prompt
     assert "Compare only total_repair_cost_rm against depreciation_loss_rm" in prompt
     assert "Do not mention buying, acquiring, financing, or replacing assets" in prompt
+    assert "Format RM currency with a space after RM and comma separators" in prompt
     assert '"depreciation_loss_rm": 118000' in prompt
     generation_config = captured["payload"]["generationConfig"]
     assert generation_config["maxOutputTokens"] >= 180
     assert generation_config["thinkingConfig"]["thinkingBudget"] == 0
+
+
+def test_gemini_summary_formats_rm_currency_values(monkeypatch):
+    def fake_urlopen(request, timeout):
+        return FakeResponse(
+            {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": (
+                                        "Repair and keep this asset because RM18400 is "
+                                        "lower than RM99959 over 5 years."
+                                    )
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(gemini_summary, "urlopen", fake_urlopen)
+    client = GeminiSummaryClient(api_key="test-key", model="models/gemini-test", timeout_seconds=3)
+
+    summary = client.advisory_summary(
+        {
+            "recommendation": "Repair and keep",
+            "depreciation_loss_rm": 99959,
+            "total_repair_cost_rm": 18400,
+        }
+    )
+
+    assert (
+        summary
+        == "Repair and keep this asset because RM 18,400 is lower than RM 99,959 over 5 years."
+    )
