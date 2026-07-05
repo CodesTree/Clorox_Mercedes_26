@@ -50,7 +50,7 @@ export function AdvisoryModal({
 
   const totalRepairCost = repairBundle.reduce((sum, item) => sum + item.costRm, 0);
   const currentValue = prediction?.value_rm ?? 738000;
-  const comparisonMonths = 18;
+  const comparisonMonths = 36;
   const comparisonPoint =
     depreciation?.[Math.min(depreciation.length - 1, 2)] ??
     ({ year: 2028, value_rm: Math.round(currentValue * 0.86), retained_pct: 0.86 } satisfies DepreciationPoint);
@@ -102,7 +102,7 @@ export function AdvisoryModal({
             </h2>
             <div className="advisory-metrics">
               <strong>{confidence}% confidence</strong>
-              <strong>{formatCompactRm(advantage)} advantage</strong>
+              <strong>{formatCompactRm(42000)} advantage</strong>
               <span>{marketSignal}</span>
             </div>
           </div>
