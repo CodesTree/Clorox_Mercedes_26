@@ -62,6 +62,7 @@ interface SpeakAssistantOptions {
   onStart: () => void;
   onEnd: () => void;
   onPlaybackError: (error: unknown) => void;
+  onAudioElement?: (audio: HTMLAudioElement) => void;
 }
 
 function formatRm(value: number) {
@@ -156,7 +157,14 @@ function base64ToBlobUrl(base64: string, mimeType: string) {
   return URL.createObjectURL(new Blob([new Uint8Array(byteNumbers)], { type: mimeType }));
 }
 
-export function speakAssistant({ audioBase64, mimeType, onStart, onEnd, onPlaybackError }: SpeakAssistantOptions) {
+export function speakAssistant({
+  audioBase64,
+  mimeType,
+  onStart,
+  onEnd,
+  onPlaybackError,
+  onAudioElement,
+}: SpeakAssistantOptions) {
   if (isSpeaking) return false;
   if (!audioBase64) return false;
 
@@ -188,6 +196,7 @@ export function speakAssistant({ audioBase64, mimeType, onStart, onEnd, onPlayba
     url = base64ToBlobUrl(audioBase64, mimeType || "audio/wav");
     const audio = new Audio(url);
     currentAudio = audio;
+    onAudioElement?.(audio);
     audio.onended = () => {
       console.log("[voice] gemini audio ended");
       if (url) URL.revokeObjectURL(url);

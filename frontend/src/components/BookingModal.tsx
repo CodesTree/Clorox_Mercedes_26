@@ -37,6 +37,9 @@ type Step = "details" | "review" | "status";
 
 const BOOKING_PURPOSE = "Certified inspection";
 
+// Flip to true to surface the developer diagnostics panel below the booking status.
+const SHOW_DEV_DIAGNOSTICS = false;
+
 // The web app waits on "sent" while the workshop replies over Telegram. These
 // are the terminal states that stop the auto-poll.
 const TERMINAL_STATUSES = new Set(["booked", "failed", "dry_run"]);
@@ -446,13 +449,15 @@ export function BookingModal({
               </button>
             ) : null}
 
-            <BookingDiagnostics
-              open={diagOpen}
-              onToggle={() => setDiagOpen((prev) => !prev)}
-              diagnostics={diagnostics}
-              result={result}
-              lastReply={lastReply}
-            />
+            {SHOW_DEV_DIAGNOSTICS ? (
+              <BookingDiagnostics
+                open={diagOpen}
+                onToggle={() => setDiagOpen((prev) => !prev)}
+                diagnostics={diagnostics}
+                result={result}
+                lastReply={lastReply}
+              />
+            ) : null}
 
             <button type="button" className="primary-button" onClick={onClose}>
               {result?.status === "booked" ? "Booked" : "Done"}

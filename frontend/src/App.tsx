@@ -36,7 +36,6 @@ import type { ComponentId } from "./components/componentConfig";
 import { DepreciationChart } from "./components/DepreciationChart";
 import { TelemetryRail } from "./components/TelemetryRail";
 import { ValueHeader } from "./components/ValueHeader";
-import { VoiceAdvisor } from "./components/VoiceAdvisor";
 import { CarScene } from "./scene/CarScene";
 import "./styles/theme.css";
 
@@ -77,7 +76,22 @@ export default function App() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingOut | null>(null);
   const [advisoryOpen, setAdvisoryOpen] = useState(false);
+  const [pendingVoiceAction, setPendingVoiceAction] = useState<"greet" | "demo" | null>(null);
   const [dashboard, setDashboard] = useState<DashboardState>(initialDashboard);
+
+  useEffect(() => {
+    const runVoiceShortcut = (event: KeyboardEvent) => {
+      if (!event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key !== "a" && key !== "d") return;
+      event.preventDefault();
+      setAdvisoryOpen(true);
+      setPendingVoiceAction(key === "a" ? "greet" : "demo");
+    };
+
+    window.addEventListener("keydown", runVoiceShortcut);
+    return () => window.removeEventListener("keydown", runVoiceShortcut);
+  }, []);
 
   useEffect(() => {
     getHealth()
@@ -234,7 +248,6 @@ export default function App() {
         <div className="orbit-hint">Drag to orbit - Scroll to zoom</div>
         <TelemetryRail snapshot={dashboard.snapshot} faults={dashboard.faults} />
         <ComponentDock selected={selectedComponent} onSelect={setSelectedComponent} />
-        <VoiceAdvisor />
 
         <section className="car-stage" aria-label="Interactive Mercedes 3D valuation model">
           <CarScene selected={selectedComponent} onSelect={setSelectedComponent} />
@@ -301,6 +314,8 @@ export default function App() {
         snapshot={dashboard.snapshot}
         faults={dashboard.faults}
         market={dashboard.market}
+        pendingVoiceAction={pendingVoiceAction}
+        onPendingVoiceActionHandled={() => setPendingVoiceAction(null)}
         onClose={() => setAdvisoryOpen(false)}
         onBookInspection={() => {
           setAdvisoryOpen(false);

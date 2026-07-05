@@ -7,6 +7,7 @@ import type {
   VehicleProfile,
 } from "../api/client";
 import { formatCompactRm, formatRm } from "./format";
+import { VoiceAdvisor } from "./VoiceAdvisor";
 
 interface AdvisoryModalProps {
   open: boolean;
@@ -16,6 +17,8 @@ interface AdvisoryModalProps {
   snapshot: ObdSnapshotOut | null;
   faults: FaultOut[];
   market: MarketCompsOut | null;
+  pendingVoiceAction: "greet" | "demo" | null;
+  onPendingVoiceActionHandled: () => void;
   onClose: () => void;
   onBookInspection: () => void;
 }
@@ -38,6 +41,8 @@ export function AdvisoryModal({
   snapshot,
   faults,
   market,
+  pendingVoiceAction,
+  onPendingVoiceActionHandled,
   onClose,
   onBookInspection,
 }: AdvisoryModalProps) {
@@ -77,6 +82,8 @@ export function AdvisoryModal({
             x
           </button>
         </div>
+
+        <VoiceAdvisor pendingVoiceAction={pendingVoiceAction} onPendingVoiceActionHandled={onPendingVoiceActionHandled} />
 
         <div className="advisory-hero">
           <div className="advisory-hero__badge" aria-hidden="true">
