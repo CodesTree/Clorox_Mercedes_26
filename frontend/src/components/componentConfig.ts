@@ -16,6 +16,7 @@ export interface ComponentItem {
   sub: string;
   impact: string;
   positive: boolean;
+  anchor: "top" | "left" | "lower-right";
 }
 
 export const COMPONENTS: ComponentItem[] = [
@@ -28,6 +29,7 @@ export const COMPONENTS: ComponentItem[] = [
     sub: "Oil life 62% - 0 faults",
     impact: "+RM 18,400",
     positive: true,
+    anchor: "top",
   },
   {
     id: "battery",
@@ -38,6 +40,7 @@ export const COMPONENTS: ComponentItem[] = [
     sub: "SOH 94% - alternator OK",
     impact: "+RM 6,200",
     positive: true,
+    anchor: "left",
   },
   {
     id: "brakes",
@@ -48,6 +51,7 @@ export const COMPONENTS: ComponentItem[] = [
     sub: "Rotor wear normal",
     impact: "+RM 4,900",
     positive: true,
+    anchor: "lower-right",
   },
   {
     id: "fuel",
@@ -58,6 +62,7 @@ export const COMPONENTS: ComponentItem[] = [
     sub: "Fuel trim within range",
     impact: "-RM 2,100",
     positive: false,
+    anchor: "top",
   },
   {
     id: "mileage",
@@ -68,6 +73,7 @@ export const COMPONENTS: ComponentItem[] = [
     sub: "OBD agrees with profile",
     impact: "+RM 9,800",
     positive: true,
+    anchor: "left",
   },
   {
     id: "diagnostics",
@@ -78,6 +84,7 @@ export const COMPONENTS: ComponentItem[] = [
     sub: "1 informational signal",
     impact: "-RM 1,600",
     positive: false,
+    anchor: "lower-right",
   },
   {
     id: "service",
@@ -88,6 +95,7 @@ export const COMPONENTS: ComponentItem[] = [
     sub: "Assumption adjustment only",
     impact: "+RM 11,200",
     positive: true,
+    anchor: "top",
   },
 ];
 
