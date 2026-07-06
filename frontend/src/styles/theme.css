@@ -1318,6 +1318,7 @@ button {
 
 .booking-modal label {
   display: grid;
+  align-content: start;
   gap: 5px;
   color: var(--text-dim);
   font-size: 14px;
@@ -1381,6 +1382,11 @@ button {
   padding: 10px 12px;
   color-scheme: dark;
   accent-color: var(--accent);
+}
+
+.booking-modal select option {
+  color: #0b1214;
+  background: #ffffff;
 }
 
 .booking-modal select:focus {

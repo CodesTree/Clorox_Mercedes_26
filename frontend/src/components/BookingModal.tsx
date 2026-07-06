@@ -46,6 +46,13 @@ const TERMINAL_STATUSES = new Set(["booked", "failed", "dry_run"]);
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLLS = 12; // ~60s of waiting before we surface a manual retry.
 
+function todayIsoDate(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 function statusLabel(result: BookingOut): string {
   if (result.dry_run) return "Dry-run booking saved";
   if (result.status === "sent") return "Booking request sent - awaiting confirmation";
@@ -79,7 +86,7 @@ export function BookingModal({
   onCheckReply,
 }: BookingModalProps) {
   const [name, setName] = useState(demoUser.name);
-  const [date, setDate] = useState("2026-07-10");
+  const [date, setDate] = useState(todayIsoDate);
   const [time, setTime] = useState("");
   const [step, setStep] = useState<Step>("details");
   const [pickerOpen, setPickerOpen] = useState(false);
