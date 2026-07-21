@@ -70,7 +70,7 @@ export function AdvisoryModal({
     92,
   );
   const recommendation =
-    advantage > 0 && health >= 65 ? "Repair & keep" : "Sell or inspect first";
+    advantage > 0 && health >= 65 ? "Sell or inspect first" : "Repair & keep";
   const marketSignal =
     market?.delta_pct !== null && market?.delta_pct !== undefined
       ? `${Math.abs(market.delta_pct * 100).toFixed(1)}% ${market.delta_pct >= 0 ? "above" : "below"} market`
